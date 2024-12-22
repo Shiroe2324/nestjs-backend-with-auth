@@ -41,7 +41,6 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   public async refresh(@Cookies('refreshToken') refreshToken: string, @Res({ passthrough: true }) res: Response) {
     const { accessToken, newRefreshToken, message } = await this.authService.refreshTokens(refreshToken);

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsString, Length, MinLength } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
 
 import { I18nTranslations } from '@/generated/i18n.generated';
@@ -8,7 +8,7 @@ export class LoginDto {
 
   @IsString({ message: LoginDto._i18n('validation.STRING') })
   @IsNotEmpty({ message: LoginDto._i18n('validation.NOT_EMPTY') })
-  @Length(3, null, { message: LoginDto._i18n('validation.LENGTH') })
+  @MinLength(3, { message: LoginDto._i18n('validation.MIN_LENGTH') })
   public identifier: string;
 
   @IsString({ message: LoginDto._i18n('validation.STRING') })

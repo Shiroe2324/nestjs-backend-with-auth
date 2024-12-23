@@ -7,10 +7,11 @@ import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AcceptLanguageResolver, CookieResolver, HeaderResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import { join } from 'path';
 
 import { configuration } from '@/config/configuration';
-import { TokenBlacklist } from '@/entities/token-blacklist';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { User } from '@/entities/user.entity';
 import { Strategies } from '@/enums/strategies.enum';
 import { AuthModule } from '@/modules/auth/auth.module';
@@ -18,8 +19,20 @@ import { TasksModule } from '@/modules/tasks/tasks.module';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ScheduleModule.forRoot(),
+    I18nModule.forRootAsync({
+      inject: [ConfigService],
+      resolvers: [new QueryResolver(['lang', 'l']), new HeaderResolver(['x-custom-lang']), new CookieResolver(), AcceptLanguageResolver],
+      useFactory: (configService: ConfigService) => ({
+        fallbackLanguage: configService.getOrThrow('server.defaultLanguage'),
+        typesOutputPath: join(__dirname, '../../src/generated/i18n.generated.ts'),
+        loaderOptions: {
+          path: join(__dirname, '../i18n/'),
+          watch: configService.getOrThrow<boolean>('server.isDevelopment'),
+        },
+      }),
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
@@ -41,12 +54,12 @@ import { TasksModule } from '@/modules/tasks/tasks.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService.get('database.host'),
-        port: configService.get('database.port'),
-        username: configService.get('database.username'),
-        password: configService.get('database.password'),
-        database: configService.get('database.name'),
-        synchronize: configService.get('server.isDevelopment'),
+        host: configService.getOrThrow('database.host'),
+        port: configService.getOrThrow('database.port'),
+        username: configService.getOrThrow('database.username'),
+        password: configService.getOrThrow('database.password'),
+        database: configService.getOrThrow('database.name'),
+        synchronize: configService.getOrThrow('server.isDevelopment'),
         entities: [User, TokenBlacklist],
       }),
     }),
@@ -54,16 +67,16 @@ import { TasksModule } from '@/modules/tasks/tasks.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         transport: {
-          host: configService.get('email.host'),
-          port: configService.get('email.port'),
-          secure: configService.get('email.secure'),
+          host: configService.getOrThrow('email.host'),
+          port: configService.getOrThrow('email.port'),
+          secure: configService.getOrThrow('email.secure'),
           auth: {
-            user: configService.get('email.username'),
-            pass: configService.get('email.password'),
+            user: configService.getOrThrow('email.username'),
+            pass: configService.getOrThrow('email.password'),
           },
         },
         defaults: {
-          from: `"No Reply" <${configService.get('email.from')}>`,
+          from: `"No Reply" <${configService.getOrThrow('email.from')}>`,
         },
         template: {
           dir: join(__dirname, '..', 'templates'),

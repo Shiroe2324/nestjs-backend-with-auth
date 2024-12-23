@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 
-import { TokenBlacklist } from '@/entities/token-blacklist';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { User } from '@/entities/user.entity';
 
 @Injectable()

@@ -6,7 +6,7 @@ import { Request } from 'express';
 import { Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 
-import { TokenBlacklist } from '@/entities/token-blacklist';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { User } from '@/entities/user.entity';
 import { Strategies } from '@/enums/strategies.enum';
 import { AuthJwtPayload } from '@/types/common';

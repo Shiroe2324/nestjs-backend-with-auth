@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { TokenBlacklist } from '@/entities/token-blacklist';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { AuthJwtPayload } from '@/types/common';
 
 @Injectable()

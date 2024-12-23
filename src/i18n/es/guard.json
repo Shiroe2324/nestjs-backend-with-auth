@@ -1,0 +1,5 @@
+{
+  "jwt": {
+    "invalid": "No se ha podido verificar el token de autenticación"
+  }
+}

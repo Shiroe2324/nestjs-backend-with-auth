@@ -24,6 +24,7 @@ export const configuration = () => {
     FRONTEND_URL,
     EMAIL_VERIFICATION_URL,
     RESET_PASSWORD_URL,
+    DEFAULT_LANGUAGE,
   } = process.env;
 
   return {
@@ -61,6 +62,7 @@ export const configuration = () => {
       frontendUrl: FRONTEND_URL,
       emailVerificationUrl: EMAIL_VERIFICATION_URL,
       resetPasswordUrl: RESET_PASSWORD_URL,
+      defaultLanguage: DEFAULT_LANGUAGE,
     },
   };
 };

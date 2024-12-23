@@ -4,7 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 
-import { TokenBlacklist } from '@/entities/token-blacklist';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { JwtRefreshService } from '@/modules/shared/jwt-refresh/jwt-refresh.service';
 
 @Module({
@@ -13,8 +13,8 @@ import { JwtRefreshService } from '@/modules/shared/jwt-refresh/jwt-refresh.serv
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get('jwt.refreshSecret'),
-        signOptions: { expiresIn: configService.get('jwt.refreshExpiration'), jwtid: randomBytes(32).toString('hex') },
+        secret: configService.getOrThrow('jwt.refreshSecret'),
+        signOptions: { expiresIn: configService.getOrThrow('jwt.refreshExpiration'), jwtid: randomBytes(32).toString('hex') },
       }),
     }),
   ],

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
+import ms from 'ms';
 import { LessThan, Repository } from 'typeorm';
 
 import { TokenBlacklist } from '@/entities/token-blacklist.entity';
@@ -15,6 +17,7 @@ export class TasksService {
     private readonly tokenBlacklistRepository: Repository<TokenBlacklist>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly configService: ConfigService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -22,7 +25,7 @@ export class TasksService {
     try {
       this.logger.log('Clearing token blacklist...');
 
-      const cutoffDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      const cutoffDate = new Date(Date.now() - this.getRefreshTokenExpiration);
       const result = await this.tokenBlacklistRepository.delete({ createdAt: LessThan(cutoffDate) });
 
       this.logger.log(`Removed ${result.affected} expired tokens from the blacklist`);
@@ -31,12 +34,12 @@ export class TasksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   public async clearUserWithoutVerificationTask() {
     try {
       this.logger.log('Clearing users without verification...');
 
-      const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const cutoffDate = new Date(Date.now() - this.getEmailExpiration);
       const result = await this.userRepository.delete({ createdAt: LessThan(cutoffDate), isVerified: false });
 
       this.logger.log(`Removed ${result.affected} users without verification`);
@@ -45,12 +48,12 @@ export class TasksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   public async removeResetPasswordTask() {
     try {
       this.logger.log('Removing reset password tokens...');
 
-      const cutoffDate = new Date(Date.now() - 60 * 60 * 1000);
+      const cutoffDate = new Date(Date.now() - this.getResetPasswordExpiration);
       const result = await this.userRepository.update(
         { resetPasswordExpires: LessThan(cutoffDate) },
         { resetPasswordToken: null, resetPasswordExpires: null },
@@ -60,5 +63,17 @@ export class TasksService {
     } catch (error) {
       this.logger.error('Failed to remove reset password tokens', error instanceof Error ? error.stack : error);
     }
+  }
+
+  private get getRefreshTokenExpiration() {
+    return ms(this.configService.getOrThrow<string>('jwt.refreshExpiration'));
+  }
+
+  private get getEmailExpiration() {
+    return this.configService.getOrThrow<number>('main.emailVerificationExpiration');
+  }
+
+  private get getResetPasswordExpiration() {
+    return this.configService.getOrThrow<number>('main.resetPasswordExpiration');
   }
 }

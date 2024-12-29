@@ -1,17 +1,18 @@
 import { IsNotEmpty, IsString, Length } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
 
+import limitsConfig from '@/config/limits.config';
 import { I18nTranslations } from '@/generated/i18n.generated';
 
+const { minPasswordLength, maxPasswordLength } = limitsConfig();
+
 export class ResetPasswordDto {
-  private static readonly _i18n = i18nValidationMessage<I18nTranslations>;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @IsNotEmpty({ message: i18nValidationMessage<I18nTranslations>('validations.NOT_EMPTY') })
+  public resetPasswordToken!: string;
 
-  @IsString({ message: ResetPasswordDto._i18n('validation.STRING') })
-  @IsNotEmpty({ message: ResetPasswordDto._i18n('validation.NOT_EMPTY') })
-  public resetPasswordToken: string;
-
-  @IsString({ message: ResetPasswordDto._i18n('validation.STRING') })
-  @IsNotEmpty({ message: ResetPasswordDto._i18n('validation.NOT_EMPTY') })
-  @Length(6, 36, { message: ResetPasswordDto._i18n('validation.LENGTH') })
-  public newPassword: string;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @IsNotEmpty({ message: i18nValidationMessage<I18nTranslations>('validations.NOT_EMPTY') })
+  @Length(minPasswordLength, maxPasswordLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
+  public newPassword!: string;
 }

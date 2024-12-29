@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { CookieOptions } from 'express';
+import ms from 'ms';
 import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
@@ -29,12 +30,20 @@ export class AuthService {
 
   public async login(identifier: string, password: string) {
     const user = await this.userRepository.findOneBy([{ username: identifier }, { email: identifier }]);
-    if (!user) throw new NotFoundException(this.i18n.t('auth.login.userNotFound'));
-    if (user.googleId) throw new ForbiddenException(this.i18n.t('auth.login.googleAuth'));
-    if (!user.isVerified) throw new ForbiddenException(this.i18n.t('auth.login.emailNotVerified'));
+
+    if (!user) {
+      throw new NotFoundException(this.i18n.t('auth.login.userNotFound'));
+    } else if (user.googleId || !user.password) {
+      throw new ForbiddenException(this.i18n.t('auth.login.googleAuth'));
+    } else if (!user.isVerified) {
+      throw new ForbiddenException(this.i18n.t('auth.login.emailNotVerified'));
+    }
 
     const validPassword = await compare(password, user.password);
-    if (!validPassword) throw new ForbiddenException(this.i18n.t('auth.login.invalidPassword'));
+
+    if (!validPassword) {
+      throw new ForbiddenException(this.i18n.t('auth.login.invalidPassword'));
+    }
 
     const accessToken = this.jwtAccessService.generateToken(user.id);
     const refreshToken = this.jwtRefreshService.generateToken(user.id);
@@ -47,7 +56,9 @@ export class AuthService {
     const accessPayload = this.jwtAccessService.verifyToken(accessToken);
     const refreshPayload = this.jwtRefreshService.verifyToken(refreshToken);
 
-    if (accessPayload.sub !== refreshPayload.sub) throw new UnauthorizedException(this.i18n.t('auth.logout.invalidTokens'));
+    if (accessPayload.sub !== refreshPayload.sub) {
+      throw new UnauthorizedException(this.i18n.t('auth.logout.invalidTokens'));
+    }
 
     this.jwtAccessService.setTokenBlacklist(accessToken);
     this.jwtRefreshService.setTokenBlacklist(refreshToken);
@@ -59,10 +70,15 @@ export class AuthService {
   public async refreshTokens(refreshToken: string) {
     const { sub } = this.jwtRefreshService.verifyToken(refreshToken);
 
-    if (await this.jwtRefreshService.isTokenBlacklisted(refreshToken)) throw new UnauthorizedException(this.i18n.t('auth.refreshTokens.blacklisted'));
+    if (await this.jwtRefreshService.isTokenBlacklisted(refreshToken)) {
+      throw new UnauthorizedException(this.i18n.t('auth.refreshTokens.blacklisted'));
+    }
 
     const user = await this.userRepository.findOneBy({ id: parseInt(sub, 10) });
-    if (!user) throw new NotFoundException(this.i18n.t('auth.refreshTokens.userNotFound'));
+
+    if (!user) {
+      throw new NotFoundException(this.i18n.t('auth.refreshTokens.userNotFound'));
+    }
 
     const accessToken = this.jwtAccessService.generateToken(user.id);
     const newRefreshToken = this.jwtRefreshService.generateToken(user.id);
@@ -92,8 +108,11 @@ export class AuthService {
 
   public async verifyEmail(emailVerificationToken: string) {
     const user = await this.userRepository.findOneBy({ emailVerificationToken });
-    if (!user || user.createdAt < new Date(Date.now() - 24 * 60 * 60 * 1000)) {
-      throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
+    if (!user) throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
+
+    if (user.createdAt < new Date(Date.now() - this.getEmailExpiration)) {
+      await this.userRepository.remove(user);
+      throw new UnauthorizedException(this.i18n.t('auth.verifyEmail.expiredToken'));
     }
 
     user.isVerified = true;
@@ -107,14 +126,20 @@ export class AuthService {
 
   public async forgotPassword(email: string) {
     const user = await this.userRepository.findOneBy({ email });
-    if (!user) throw new NotFoundException(this.i18n.t('auth.forgotPassword.userNotFound'));
-    if (!user.isVerified) throw new ForbiddenException(this.i18n.t('auth.forgotPassword.emailNotVerified'));
-    if (user.googleId) throw new ForbiddenException(this.i18n.t('auth.forgotPassword.googleAuth'));
-    if (user.resetPasswordExpires || user.resetPasswordToken) throw new ForbiddenException(this.i18n.t('auth.forgotPassword.pendingRequest'));
+
+    if (!user) {
+      throw new NotFoundException(this.i18n.t('auth.forgotPassword.userNotFound'));
+    } else if (!user.isVerified) {
+      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.emailNotVerified'));
+    } else if (user.googleId) {
+      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.googleAuth'));
+    } else if (user.resetPasswordExpires || user.resetPasswordToken) {
+      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.pendingRequest'));
+    }
 
     const resetPasswordToken = randomBytes(32).toString('hex');
     user.resetPasswordToken = resetPasswordToken;
-    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
+    user.resetPasswordExpires = new Date(Date.now() + this.getResetPasswordExpiration);
 
     await this.userRepository.save(user);
     this.mailsService.sendResetPasswordEmail(email, resetPasswordToken);
@@ -125,8 +150,16 @@ export class AuthService {
 
   public async resetPassword(resetPasswordToken: string, newPassword: string) {
     const user = await this.userRepository.findOneBy({ resetPasswordToken });
-    if (!user || user.resetPasswordExpires < new Date()) {
-      throw new UnauthorizedException(this.i18n.t('auth.resetPassword.invalidToken'));
+
+    if (!user) {
+      throw new NotFoundException(this.i18n.t('auth.resetPassword.invalidToken'));
+    } else if (!user.resetPasswordExpires) {
+      throw new ForbiddenException(this.i18n.t('auth.resetPassword.noRequestFound'));
+    } else if (user.resetPasswordExpires < new Date()) {
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await this.userRepository.save(user);
+      throw new UnauthorizedException(this.i18n.t('auth.resetPassword.expiredToken'));
     }
 
     user.password = await hash(newPassword, 10);
@@ -140,25 +173,50 @@ export class AuthService {
   }
 
   public async googleLogin(user: User) {
-    if (!user.googleId) throw new UnauthorizedException(this.i18n.t('auth.googleLogin.notGoogleAuth'));
+    if (!user.googleId) {
+      throw new UnauthorizedException(this.i18n.t('auth.googleLogin.notGoogleAuth'));
+    }
 
-    const redirectUrl = this.configService.get<string>('google.redirectUrl');
     const accessToken = this.jwtAccessService.generateToken(user.id);
     const refreshToken = this.jwtRefreshService.generateToken(user.id);
 
     this.logger.log(`User ${user.id} has logged in with Google`);
-    return { accessToken, refreshToken, redirectUrl, message: this.i18n.t('auth.googleLogin.success') };
+    return { accessToken, refreshToken, redirectUrl: this.getGoogleRedirectUrl, message: this.i18n.t('auth.googleLogin.success') };
   }
 
   public get getAccessTokenCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.configService.getOrThrow('server.isProduction'), sameSite: 'strict', path: '/', maxAge: 3600000 };
+    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/', maxAge: ms(this.getJwtAccessExpiration) };
   }
 
   public get getRefreshTokenCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.configService.getOrThrow('server.isProduction'), sameSite: 'strict', path: '/', maxAge: 604800016 };
+    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/', maxAge: ms(this.getJwtRefreshExpiration) };
   }
 
   public get getClearCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.configService.getOrThrow('server.isProduction'), sameSite: 'strict', path: '/' };
+    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/' };
+  }
+
+  private get getEmailExpiration() {
+    return this.configService.getOrThrow<number>('main.emailVerificationExpiration');
+  }
+
+  private get getResetPasswordExpiration() {
+    return this.configService.getOrThrow<number>('main.resetPasswordExpiration');
+  }
+
+  private get getGoogleRedirectUrl() {
+    return this.configService.getOrThrow<string>('google.redirectUrl');
+  }
+
+  private get getJwtAccessExpiration() {
+    return this.configService.getOrThrow<string>('jwt.accessExpiration');
+  }
+
+  private get getJwtRefreshExpiration() {
+    return this.configService.getOrThrow<string>('jwt.refreshExpiration');
+  }
+
+  private get isProduction() {
+    return this.configService.getOrThrow<boolean>('main.isProduction');
   }
 }

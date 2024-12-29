@@ -9,7 +9,11 @@ import { I18nTranslations } from '@/generated/i18n.generated';
 export class JwtAuthGuard extends AuthGuard(Strategies.JWT) {
   public handleRequest(err: any, user: any, _info: any, _context: ExecutionContext) {
     const i18n = I18nContext.current<I18nTranslations>();
-    if (err || !user) throw new UnauthorizedException(i18n.t('guard.jwt.invalid'));
+
+    if ((err || !user) && i18n) {
+      throw new UnauthorizedException(i18n.t('guards.jwt.invalid'));
+    }
+
     return user;
   }
 }

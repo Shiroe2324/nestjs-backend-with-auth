@@ -1,49 +1,7 @@
-// {
-//   "compilerOptions": {
-//     // Enable latest features
-//     "lib": ["ESNext", "DOM"],
-//     "target": "ES2021",
-//     "module": "ESNext",
-//     "moduleDetection": "force",
-//     "jsx": "react-jsx",
-//     "allowJs": true,
-//     "experimentalDecorators": true,
-//     "emitDecoratorMetadata": true,
-//     "allowSyntheticDefaultImports": true,
-//     "moduleResolution": "bundler",
-
-//     // Output
-//     "declaration": true,
-//     "removeComments": true,
-//     "sourceMap": true,
-//     "outDir": "./dist",
-//     "incremental": true,
-
-//     // Best practices
-//     "strict": true,
-//     "skipLibCheck": true,
-//     "noFallthroughCasesInSwitch": true,
-//     "strictNullChecks": true,
-//     "strictBindCallApply": true,
-//     "forceConsistentCasingInFileNames": true,
-
-//     // Some stricter flags
-//     "noUnusedLocals": true,
-//     "noUnusedParameters": true,
-//     "noPropertyAccessFromIndexSignature": true,
-//     "noImplicitAny": true,
-
-//     // Paths
-//     "baseUrl": "src",
-//     "paths": {
-//       "@/*": ["*"]
-//     }
-//   }
-// }
-
 {
   "compilerOptions": {
     "module": "commonjs",
+    "esModuleInterop": true,
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -55,7 +13,7 @@
     "baseUrl": "./src",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,

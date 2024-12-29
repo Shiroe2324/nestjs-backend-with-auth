@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 
 import { Cookies } from '@/decorators/cookies.decorator';
@@ -9,15 +9,12 @@ import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { AuthService } from '@/modules/auth/auth.service';
 import { ForgotPasswordDto } from '@/modules/auth/dto/forgot-password.dto';
 import { LoginDto } from '@/modules/auth/dto/login.dto';
-import { MeDto } from '@/modules/auth/dto/me.dto';
 import { RegisterDto } from '@/modules/auth/dto/register.dto';
 import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
 import { VerifyEmailDto } from '@/modules/auth/dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
@@ -47,14 +44,6 @@ export class AuthController {
     res.cookie('accessToken', accessToken, this.authService.getAccessTokenCookieOptions);
     res.cookie('refreshToken', newRefreshToken, this.authService.getRefreshTokenCookieOptions);
     return { message };
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  public async me(@User() user: UserEntity) {
-    this.logger.log(`User ${user.id} requested their own data`);
-    return new MeDto(user);
   }
 
   @Post('register')

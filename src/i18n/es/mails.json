@@ -1,0 +1,38 @@
+{
+  "emailVerification": {
+    "subject": "Verifica tu Cuenta",
+    "html": {
+      "header": {
+        "title": "¡Bienvenido a Nuestro Sitio!"
+      },
+      "body": {
+        "greeting": "Hola,",
+        "content": "Gracias por registrarte en nuestra plataforma. Para completar tu registro y activar tu cuenta, por favor haz clic en el botón de abajo:",
+        "button": "Verificar Cuenta",
+        "link": "Si no puedes hacer clic en el botón, copia y pega el siguiente enlace en tu navegador:"
+      },
+      "footer": {
+        "content": "Si no solicitaste esta verificación, puedes ignorar este correo.",
+        "signature": "Atentamente, El Equipo de Soporte"
+      }
+    }
+  },
+  "resetPassword": {
+    "subject": "Restablece tu Contraseña",
+    "html": {
+      "header": {
+        "title": "Restablecimiento de Contraseña"
+      },
+      "body": {
+        "greeting": "Hola,",
+        "content": "Hemos recibido una solicitud para restablecer tu contraseña. Para continuar, haz clic en el botón de abajo:",
+        "button": "Restablecer Contraseña",
+        "link": "Si no puedes hacer clic en el botón, copia y pega el siguiente enlace en tu navegador:"
+      },
+      "footer": {
+        "content": "Si no solicitaste este cambio, ignora este correo o contacta a nuestro soporte si tienes dudas.",
+        "signature": "Atentamente, El Equipo de Soporte"
+      }
+    }
+  }
+}

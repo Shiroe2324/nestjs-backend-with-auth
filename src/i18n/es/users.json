@@ -1,0 +1,21 @@
+{
+  "findOne": {
+    "notFound": "Usuario no encontrado"
+  },
+  "delete": {
+    "success": "Usuario eliminado con exito"
+  },
+  "update": {
+    "noData": "No hay datos para actualizar",
+    "usernameInUse": "El nombre de usuario ya esta en uso",
+    "noChanges": "No se realizaron cambios",
+    "success": "Usuario actualizado con exito"
+  },
+  "updatePicture": {
+    "success": "Imagen de perfil actualizada con exito"
+  },
+  "deletePicture": {
+    "notFound": "El usuario no tiene una imagen de perfil",
+    "success": "Imagen de perfil eliminada con exito"
+  }
+}

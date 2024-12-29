@@ -70,18 +70,18 @@
 <body>
   <div class="email-container">
     <div class="email-header">
-      <h1>¡Bienvenido a Nuestro Sitio!</h1>
+      <h1>{{ t 'mails.emailVerification.html.header.title' }}</h1>
     </div>
     <div class="email-body">
-      <p>Hola,</p>
-      <p>Gracias por registrarte en nuestra plataforma. Para completar tu registro y activar tu cuenta, por favor haz clic en el botón de abajo:</p>
-      <a href="{{emailVerificationLink}}" class="btn">Verificar Cuenta</a>
-      <p>Si no puedes hacer clic en el botón, copia y pega el siguiente enlace en tu navegador:</p>
+      <p>{{ t 'mails.emailVerification.html.body.greeting' }}</p>
+      <p>{{ t 'mails.emailVerification.html.body.content' }}</p>
+      <a href="{{emailVerificationLink}}" class="btn">{{ t 'mails.emailVerification.html.body.button' }}</a>
+      <p>{{ t 'mails.emailVerification.html.body.link' }}</p>
       <p><a href="{{emailVerificationLink}}">{{emailVerificationLink}}</a></p>
     </div>
     <div class="email-footer">
-      <p>Si no solicitaste esta verificación, puedes ignorar este correo.</p>
-      <p>Atentamente,<br>El Equipo de Soporte</p>
+      <p>{{ t 'mails.emailVerification.html.footer.content' }}</p>
+      <p>{{ t 'mails.emailVerification.html.footer.signature' }}</p>
     </div>
   </div>
 </body>

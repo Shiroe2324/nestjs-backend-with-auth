@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,35 +22,54 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
     private readonly i18n: I18nService<I18nTranslations>,
   ) {
     super({
-      clientID: configService.get<string>('google.clientId'),
-      clientSecret: configService.get<string>('google.clientSecret'),
-      callbackURL: configService.get<string>('google.callbackUrl'),
+      clientID: configService.getOrThrow<string>('google.clientId'),
+      clientSecret: configService.getOrThrow<string>('google.clientSecret'),
+      callbackURL: configService.getOrThrow<string>('google.callbackUrl'),
       scope: ['email', 'profile'],
     });
   }
 
   public async validate(_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) {
-    const { id, emails, photos } = profile;
+    const { id, displayName, emails, photos } = profile;
+
+    if (!emails || !emails.length) {
+      throw new BadRequestException(this.i18n.t('auth.register.emailRequired'));
+    }
 
     let user = await this.userRepository.findOneBy({ googleId: id });
 
     if (!user) {
       const googleId = id;
-      const email = emails[0]?.value;
-      const picture = photos[0]?.value || null;
+      const email = emails[0].value;
+      const picture = photos ? photos[0].value : null;
 
       if (await this.userRepository.existsBy({ email })) {
         throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
       }
 
       const username = await this.generateUsername();
+      const name = this.generateDisplayName(displayName);
 
-      user = this.userRepository.create({ googleId, username, email, picture, isVerified: true });
+      user = this.userRepository.create({ googleId, username, displayName: name, email, picture, isVerified: true });
       await this.userRepository.save(user);
       this.logger.log(`User ${user.id} has registered with Google`);
     }
 
     return done(null, user);
+  }
+
+  private generateDisplayName(displayName: string) {
+    const minDisplayNameLength = this.configService.getOrThrow<number>('limits.minDisplayNameLength');
+    const maxDisplayNameLength = this.configService.getOrThrow<number>('limits.maxDisplayNameLength');
+    let name: string | null = displayName;
+
+    if (name.length < minDisplayNameLength) {
+      name = null;
+    } else if (name.length > maxDisplayNameLength) {
+      name = name.slice(0, maxDisplayNameLength);
+    }
+
+    return name;
   }
 
   private async generateUsername() {

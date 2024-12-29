@@ -2,75 +2,81 @@ import { IsBoolean, IsDate, IsEmail, IsInt, IsNotEmpty, IsOptional, IsPositive, 
 import { i18nValidationMessage } from 'nestjs-i18n';
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+import limitsConfig from '@/config/limits.config';
 import { I18nTranslations } from '@/generated/i18n.generated';
+
+const { minUsernameLength, maxUsernameLength, minPasswordLength, maxPasswordLength, minDisplayNameLength, maxDisplayNameLength } = limitsConfig();
 
 @Entity()
 export class User {
-  private static readonly _i18n = i18nValidationMessage<I18nTranslations>;
-
   @PrimaryGeneratedColumn()
-  @IsInt({ message: User._i18n('validation.INTEGER') })
-  @IsPositive({ message: User._i18n('validation.POSITIVE') })
-  public id: number;
+  @IsInt({ message: i18nValidationMessage<I18nTranslations>('validations.INTEGER') })
+  @IsPositive({ message: i18nValidationMessage<I18nTranslations>('validations.POSITIVE') })
+  public id!: number;
 
-  @Column({ unique: true, nullable: true, default: null })
+  @Column({ type: 'varchar', unique: true, nullable: true, default: null })
   @IsOptional()
-  @IsString({ message: User._i18n('validation.STRING') })
-  public googleId: string | null;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  public googleId!: string | null;
 
-  @Column({ unique: true, length: 36 })
-  @IsString({ message: User._i18n('validation.STRING') })
-  @IsNotEmpty({ message: User._i18n('validation.NOT_EMPTY') })
-  @Matches(/^[a-z0-9]+$/, { message: User._i18n('validation.ALPHANUMERIC') })
-  @Length(3, 36, { message: User._i18n('validation.LENGTH') })
-  public username: string;
+  @Column({ unique: true, length: maxUsernameLength })
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @IsNotEmpty({ message: i18nValidationMessage<I18nTranslations>('validations.NOT_EMPTY') })
+  @Matches(/^[a-z0-9]+$/, { message: i18nValidationMessage<I18nTranslations>('validations.ALPHANUMERIC') })
+  @Length(minUsernameLength, maxUsernameLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
+  public username!: string;
 
-  @Column({ length: 36, nullable: true, default: null })
+  @Column({ type: 'varchar', nullable: true, default: null, length: maxDisplayNameLength })
   @IsOptional()
-  @IsString({ message: User._i18n('validation.STRING') })
-  @Length(3, 36, { message: User._i18n('validation.LENGTH') })
-  public displayName: string | null;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @Length(minDisplayNameLength, maxDisplayNameLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
+  public displayName!: string | null;
 
   @Column({ unique: true })
-  @IsEmail({}, { message: User._i18n('validation.EMAIL') })
-  public email: string;
+  @IsEmail({}, { message: i18nValidationMessage<I18nTranslations>('validations.EMAIL') })
+  public email!: string;
 
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'text', nullable: true, default: null })
   @IsOptional()
-  @IsString({ message: User._i18n('validation.STRING') })
-  @Length(6, 36, { message: User._i18n('validation.LENGTH') })
-  public password: string | null;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @Length(minPasswordLength, maxPasswordLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
+  public password!: string | null;
 
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'text', nullable: true, default: null })
   @IsOptional()
-  @IsUrl({}, { message: User._i18n('validation.URL') })
-  public picture: string | null;
+  @IsUrl({}, { message: i18nValidationMessage<I18nTranslations>('validations.URL') })
+  public picture!: string | null;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  @IsOptional()
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  public picturePublicId!: string | null;
 
   @Column({ default: false })
-  @IsBoolean({ message: User._i18n('validation.BOOLEAN') })
-  public isVerified: boolean;
+  @IsBoolean({ message: i18nValidationMessage<I18nTranslations>('validations.BOOLEAN') })
+  public isVerified!: boolean;
 
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'text', nullable: true, default: null })
   @IsOptional()
-  @IsString({ message: User._i18n('validation.STRING') })
-  public emailVerificationToken: string | null;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  public emailVerificationToken!: string | null;
 
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'text', nullable: true, default: null })
   @IsOptional()
-  @IsString({ message: User._i18n('validation.STRING') })
-  @IsNotEmpty({ message: User._i18n('validation.NOT_EMPTY') })
-  public resetPasswordToken: string | null;
+  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
+  @IsNotEmpty({ message: i18nValidationMessage<I18nTranslations>('validations.NOT_EMPTY') })
+  public resetPasswordToken!: string | null;
 
   @Column({ type: 'timestamp', nullable: true, default: null })
   @IsOptional()
-  @IsDate({ message: User._i18n('validation.DATE') })
-  public resetPasswordExpires: Date | null;
+  @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
+  public resetPasswordExpires!: Date | null;
 
   @CreateDateColumn()
-  @IsDate({ message: User._i18n('validation.DATE') })
-  public createdAt: Date;
+  @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
+  public createdAt!: Date;
 
   @UpdateDateColumn()
-  @IsDate({ message: User._i18n('validation.DATE') })
-  public updatedAt: Date;
+  @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
+  public updatedAt!: Date;
 }

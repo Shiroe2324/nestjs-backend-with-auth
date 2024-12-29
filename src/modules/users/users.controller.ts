@@ -23,7 +23,7 @@ import { MeDto } from '@/modules/users/dto/me.dto';
 import { UpdateDto } from '@/modules/users/dto/update.dto';
 import { UserDto } from '@/modules/users/dto/user.dto';
 import { UsersService } from '@/modules/users/users.service';
-import { ParseImageFilePipe } from '@/pipes/ParseImageFilePipe.pipe';
+import { ParseImageFilePipe } from '@/pipes/parse-image-file.pipe';
 
 @Controller('users')
 export class UsersController {

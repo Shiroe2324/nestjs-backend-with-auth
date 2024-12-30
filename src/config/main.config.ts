@@ -25,7 +25,7 @@ export default registerAs('main', () => ({
   frontendUrl,
   defaultLanguage,
   emailVerificationUrl,
-  emailVerification: ms(emailVerificationExpiration),
+  emailVerificationExpiration: ms(emailVerificationExpiration),
   resetPasswordUrl,
-  resetPassword: ms(resetPasswordExpiration),
+  resetPasswordExpiration: ms(resetPasswordExpiration),
 }));

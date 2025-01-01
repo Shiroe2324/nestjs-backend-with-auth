@@ -1,15 +1,17 @@
 import { registerAs } from '@nestjs/config';
 
-const { DATABASE_HOST: host, DATABASE_PORT: port, DATABASE_NAME: name, DATABASE_USERNAME: username, DATABASE_PASSWORD: password } = process.env;
+import { databaseSchema } from '@/schemas/database.schema';
 
-if (!host || !port || !name || !username || !password) {
-  throw new Error('Missing database configuration');
+const envVars = databaseSchema.validate(process.env, { allowUnknown: true, abortEarly: false, stripUnknown: true });
+
+if (envVars.error) {
+  throw new Error(`Database configuration validation error: ${envVars.error.message}`);
 }
 
 export default registerAs('database', () => ({
-  host,
-  port: parseInt(port, 10),
-  name,
-  username,
-  password,
+  host: envVars.value.DATABASE_HOST,
+  port: envVars.value.DATABASE_PORT,
+  name: envVars.value.DATABASE_NAME,
+  username: envVars.value.DATABASE_USERNAME,
+  password: envVars.value.DATABASE_PASSWORD,
 }));

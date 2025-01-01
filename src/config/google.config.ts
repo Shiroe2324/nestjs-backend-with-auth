@@ -1,19 +1,16 @@
 import { registerAs } from '@nestjs/config';
 
-const {
-  GOOGLE_CLIENT_ID: clientId,
-  GOOGLE_CLIENT_SECRET: clientSecret,
-  GOOGLE_CALLBACK_URL: callbackUrl,
-  GOOGLE_REDIRECT_URL: redirectUrl,
-} = process.env;
+import { googleSchema } from '@/schemas/google.schema';
 
-if (!clientId || !clientSecret || !callbackUrl || !redirectUrl) {
-  throw new Error('Missing Google configuration');
+const envVars = googleSchema.validate(process.env, { allowUnknown: true, abortEarly: false, stripUnknown: true });
+
+if (envVars.error) {
+  throw new Error(`Google configuration validation error: ${envVars.error.message}`);
 }
 
 export default registerAs('google', () => ({
-  clientId,
-  clientSecret,
-  callbackUrl,
-  redirectUrl,
+  clientId: envVars.value.GOOGLE_CLIENT_ID,
+  clientSecret: envVars.value.GOOGLE_CLIENT_SECRET,
+  callbackUrl: envVars.value.GOOGLE_CALLBACK_URL,
+  redirectUrl: envVars.value.GOOGLE_REDIRECT_URL,
 }));

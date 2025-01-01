@@ -1,0 +1,4 @@
+src/generated
+src/i18n
+node_modules
+dist

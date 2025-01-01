@@ -1,13 +1,15 @@
 import { registerAs } from '@nestjs/config';
 
-const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = process.env;
+import { cloudinarySchema } from '@/schemas/cloudinary.schema';
 
-if (!cloudName || !apiKey || !apiSecret) {
-  throw new Error('Missing cloudinary configuration');
+const envVars = cloudinarySchema.validate(process.env, { allowUnknown: true, abortEarly: false, stripUnknown: true });
+
+if (envVars.error) {
+  throw new Error(`Cloudinary configuration validation error: ${envVars.error.message}`);
 }
 
 export default registerAs('cloudinary', () => ({
-  cloudName,
-  apiKey,
-  apiSecret,
+  cloudName: envVars.value.CLOUDINARY_CLOUD_NAME,
+  apiKey: envVars.value.CLOUDINARY_API_KEY,
+  apiSecret: envVars.value.CLOUDINARY_API_SECRET,
 }));

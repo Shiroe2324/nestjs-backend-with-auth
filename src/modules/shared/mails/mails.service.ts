@@ -16,8 +16,7 @@ export class MailsService {
   ) {}
 
   public async sendEmailVerificationEmail(email: string, emailVerificationToken: string) {
-    const emailVerificationUrl = this.configService.getOrThrow<string>('main.emailVerificationUrl');
-    const emailVerificationLink = `${emailVerificationUrl}?emailVerificationToken=${emailVerificationToken}`;
+    const emailVerificationLink = `${this.getEmailVerificationUrl}?emailVerificationToken=${emailVerificationToken}`;
 
     try {
       await this.mailerService.sendMail({
@@ -34,8 +33,7 @@ export class MailsService {
   }
 
   public async sendResetPasswordEmail(email: string, resetPasswordToken: string) {
-    const resetPasswordUrl = this.configService.getOrThrow<string>('main.resetPasswordUrl');
-    const resetPasswordLink = `${resetPasswordUrl}?resetPasswordToken=${resetPasswordToken}`;
+    const resetPasswordLink = `${this.getResetPasswordUrl}?resetPasswordToken=${resetPasswordToken}`;
 
     try {
       await this.mailerService.sendMail({
@@ -49,5 +47,13 @@ export class MailsService {
     } catch (error) {
       this.logger.error(`Failed to send password reset email to ${email}`, error instanceof Error ? error.stack : error);
     }
+  }
+
+  private get getEmailVerificationUrl() {
+    return this.configService.getOrThrow<string>('main.emailVerificationUrl');
+  }
+
+  private get getResetPasswordUrl() {
+    return this.configService.getOrThrow<string>('main.resetPasswordUrl');
   }
 }

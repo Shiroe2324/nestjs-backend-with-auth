@@ -1,23 +1,18 @@
 import { registerAs } from '@nestjs/config';
 
-const {
-  EMAIL_HOST: host,
-  EMAIL_PORT: port,
-  EMAIL_SECURE: secure = 'true',
-  EMAIL_USERNAME: username,
-  EMAIL_PASSWORD: password,
-  EMAIL_FROM: from,
-} = process.env;
+import { emailSchema } from '@/schemas/email.schema';
 
-if (!host || !port || !username || !password || !from) {
-  throw new Error('Missing email configuration');
+const envVars = emailSchema.validate(process.env, { allowUnknown: true, abortEarly: false, stripUnknown: true });
+
+if (envVars.error) {
+  throw new Error(`Email configuration validation error: ${envVars.error.message}`);
 }
 
 export default registerAs('email', () => ({
-  host,
-  port: parseInt(port, 10),
-  secure: secure === 'true',
-  username,
-  password,
-  from,
+  host: envVars.value.EMAIL_HOST,
+  port: envVars.value.EMAIL_PORT,
+  secure: envVars.value.EMAIL_SECURE,
+  username: envVars.value.EMAIL_USERNAME,
+  password: envVars.value.EMAIL_PASSWORD,
+  from: envVars.value.EMAIL_FROM,
 }));

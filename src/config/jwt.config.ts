@@ -1,22 +1,16 @@
 import { registerAs } from '@nestjs/config';
-import ms from 'ms';
 
-const {
-  JWT_ACCESS_SECRET: accessSecret,
-  JWT_ACCESS_EXPIRATION: accessExpiration = '1h',
-  JWT_REFRESH_SECRET: refreshSecret,
-  JWT_REFRESH_EXPIRATION: refreshExpiration = '7d',
-} = process.env;
+import { jwtSchema } from '@/schemas/jwt.schema';
 
-if (!accessSecret || !refreshSecret) {
-  throw new Error('Missing JWT configuration');
-} else if (ms(accessExpiration) > ms(refreshExpiration)) {
-  throw new Error('JWT access token expiration must be less than refresh token expiration');
+const envVars = jwtSchema.validate(process.env, { allowUnknown: true, abortEarly: false, stripUnknown: true });
+
+if (envVars.error) {
+  throw new Error(`JWT configuration validation error: ${envVars.error.message}`);
 }
 
 export default registerAs('jwt', () => ({
-  accessSecret,
-  accessExpiration,
-  refreshSecret,
-  refreshExpiration,
+  accessSecret: envVars.value.JWT_ACCESS_SECRET,
+  accessExpiration: envVars.value.JWT_ACCESS_EXPIRATION,
+  refreshSecret: envVars.value.JWT_REFRESH_SECRET,
+  refreshExpiration: envVars.value.JWT_REFRESH_EXPIRATION,
 }));

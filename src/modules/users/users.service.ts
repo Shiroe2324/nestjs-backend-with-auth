@@ -7,7 +7,7 @@ import { User } from '@/entities/user.entity';
 import { Order, OrderBy } from '@/enums/find-all-users.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
 import { CloudinaryService } from '@/modules/shared/cloudinary/cloudinary.service';
-import { FindAllUsersOptions } from '@/types/common';
+import { FindAllUsersOptions } from '@/types/users';
 
 @Injectable()
 export class UsersService {

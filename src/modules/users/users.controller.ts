@@ -49,16 +49,16 @@ export class UsersController {
   @Put('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  public async update(@User() loggedUser: UserEntity, @Body() body: UpdateDto) {
-    const { user, message } = await this.usersService.update(loggedUser.id, body);
+  public async update(@User('id') userId: number, @Body() body: UpdateDto) {
+    const { user, message } = await this.usersService.update(userId, body);
     return { user: new UserDto(user), message };
   }
 
   @Delete('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  public async delete(@User() loggedUser: UserEntity) {
-    const { user, message } = await this.usersService.delete(loggedUser.id);
+  public async delete(@User('id') userId: number) {
+    const { user, message } = await this.usersService.delete(userId);
     return { user: new UserDto(user), message };
   }
 
@@ -66,16 +66,16 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('picture'))
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  public async updatePicture(@User() loggedUser: UserEntity, @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File) {
-    const { user, message } = await this.usersService.updatePicture(loggedUser.id, picture);
+  public async updatePicture(@User('id') userId: number, @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File) {
+    const { user, message } = await this.usersService.updatePicture(userId, picture);
     return { user: new UserDto(user), message };
   }
 
   @Delete('me/picture')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  public async deletePicture(@User() loggedUser: UserEntity) {
-    const { user, message } = await this.usersService.deletePicture(loggedUser.id);
+  public async deletePicture(@User('id') userId: number) {
+    const { user, message } = await this.usersService.deletePicture(userId);
     return { user: new UserDto(user), message };
   }
 

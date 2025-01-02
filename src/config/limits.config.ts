@@ -15,6 +15,6 @@ export default registerAs('limits', () => ({
   maxPasswordLength: envVars.value.MAX_PASSWORD_LENGTH,
   minDisplayNameLength: envVars.value.MIN_DISPLAY_NAME_LENGTH,
   maxDisplayNameLength: envVars.value.MAX_DISPLAY_NAME_LENGTH,
-  maxFileSize: envVars.value.MAX_FILE_SIZE,
+  maxImageFileSize: envVars.value.MAX_IMAGE_FILE_SIZE,
   maxFindAllLimit: envVars.value.MAX_FIND_ALL_LIMIT,
 }));

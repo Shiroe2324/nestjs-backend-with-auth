@@ -42,7 +42,7 @@ export interface LimitsConfig {
   MAX_PASSWORD_LENGTH: number;
   MIN_DISPLAY_NAME_LENGTH: number;
   MAX_DISPLAY_NAME_LENGTH: number;
-  MAX_FILE_SIZE: number;
+  MAX_IMAGE_FILE_SIZE: number;
   MAX_FIND_ALL_LIMIT: number;
 }
 

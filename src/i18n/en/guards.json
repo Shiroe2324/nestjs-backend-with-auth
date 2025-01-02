@@ -1,5 +1,8 @@
 {
   "jwt": {
     "invalid": "The authentication token could not be verified"
+  },
+  "roles": {
+    "forbidden": "You do not have the necessary permissions to perform this action, you need one of the following roles: {roles}"
   }
 }

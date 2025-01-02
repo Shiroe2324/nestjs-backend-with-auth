@@ -15,9 +15,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
+import { RequiredRoles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { User as UserEntity } from '@/entities/user.entity';
+import { Roles } from '@/enums/roles.enum';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
+import { RolesGuard } from '@/guards/roles.guard';
 import { FindAllDto } from '@/modules/users/dto/find-all.dto';
 import { MeDto } from '@/modules/users/dto/me.dto';
 import { UpdateDto } from '@/modules/users/dto/update.dto';
@@ -43,19 +46,19 @@ export class UsersController {
     return new MeDto(user);
   }
 
-  @Delete('me')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  public async delete(@User() loggedUser: UserEntity) {
-    const { user, message } = await this.usersService.delete(loggedUser.id);
-    return { user: new UserDto(user), message };
-  }
-
   @Put('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   public async update(@User() loggedUser: UserEntity, @Body() body: UpdateDto) {
     const { user, message } = await this.usersService.update(loggedUser.id, body);
+    return { user: new UserDto(user), message };
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  public async delete(@User() loggedUser: UserEntity) {
+    const { user, message } = await this.usersService.delete(loggedUser.id);
     return { user: new UserDto(user), message };
   }
 
@@ -80,5 +83,45 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public async findOne(@Param('identifier') identifier: number | string) {
     return new UserDto(await this.usersService.findOne(identifier));
+  }
+
+  @Put(':identifier')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles([Roles.ADMIN])
+  @HttpCode(HttpStatus.OK)
+  public async updateOne(@Param('identifier') identifier: number | string, @Body() body: UpdateDto) {
+    const { user, message } = await this.usersService.update(identifier, body);
+    return { user: new UserDto(user), message };
+  }
+
+  @Delete(':identifier')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles([Roles.ADMIN])
+  @HttpCode(HttpStatus.OK)
+  public async deleteOne(@Param('identifier') identifier: number | string) {
+    const { user, message } = await this.usersService.delete(identifier);
+    return { user: new UserDto(user), message };
+  }
+
+  @Patch(':identifier/picture')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles([Roles.ADMIN])
+  @UseInterceptors(FileInterceptor('picture'))
+  @HttpCode(HttpStatus.OK)
+  public async updateOnePicture(
+    @Param('identifier') identifier: number | string,
+    @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File,
+  ) {
+    const { user, message } = await this.usersService.updatePicture(identifier, picture);
+    return { user: new UserDto(user), message };
+  }
+
+  @Delete(':identifier/picture')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles([Roles.ADMIN])
+  @HttpCode(HttpStatus.OK)
+  public async deleteOnePicture(@Param('identifier') identifier: number | string) {
+    const { user, message } = await this.usersService.deletePicture(identifier);
+    return { user: new UserDto(user), message };
   }
 }

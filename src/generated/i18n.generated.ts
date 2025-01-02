@@ -24,6 +24,7 @@ export type I18nTranslations = {
         };
         "register": {
             "emailRequired": string;
+            "userRoleNotFound": string;
             "usernameInUse": string;
             "emailInUse": string;
             "success": string;
@@ -54,6 +55,9 @@ export type I18nTranslations = {
     "guards": {
         "jwt": {
             "invalid": string;
+        };
+        "roles": {
+            "forbidden": string;
         };
     };
     "mails": {

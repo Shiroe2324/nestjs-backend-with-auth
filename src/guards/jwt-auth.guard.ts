@@ -10,8 +10,9 @@ export class JwtAuthGuard extends AuthGuard(Strategies.JWT) {
   public handleRequest(err: any, user: any, _info: any, _context: ExecutionContext) {
     const i18n = I18nContext.current<I18nTranslations>();
 
-    if ((err || !user) && i18n) {
-      throw new UnauthorizedException(i18n.t('guards.jwt.invalid'));
+    if (err || !user) {
+      const message = i18n ? i18n.t('guards.jwt.invalid') : 'Unauthorized';
+      throw new UnauthorizedException(message);
     }
 
     return user;

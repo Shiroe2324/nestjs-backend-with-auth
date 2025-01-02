@@ -1,15 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import ms from 'ms';
 import { LessThan, Repository } from 'typeorm';
 
+import { Role } from '@/entities/role.entity';
 import { TokenBlacklist } from '@/entities/token-blacklist.entity';
 import { User } from '@/entities/user.entity';
+import { Roles } from '@/enums/roles.enum';
 
 @Injectable()
-export class TasksService {
+export class TasksService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TasksService.name);
 
   constructor(
@@ -17,8 +19,33 @@ export class TasksService {
     private readonly tokenBlacklistRepository: Repository<TokenBlacklist>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
   ) {}
+
+  public async onApplicationBootstrap() {
+    await this.createRoles();
+  }
+
+  private async createRoles() {
+    try {
+      const existingRoles = await this.roleRepository.find();
+      const existingRoleNames = existingRoles.map((role) => role.name);
+
+      const missingRoles = Object.values(Roles).filter((role) => !existingRoleNames.includes(role));
+
+      if (missingRoles.length > 0) {
+        const newRoles = missingRoles.map((roleName) => this.roleRepository.create({ name: roleName }));
+        await this.roleRepository.save(newRoles);
+        this.logger.log(`Roles created: ${missingRoles.join(', ')}`);
+      } else {
+        this.logger.log('All roles already exist.');
+      }
+    } catch (error) {
+      this.logger.error('Failed to initialize roles', error instanceof Error ? error.stack : error);
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   public async clearTokenBlacklistTask() {

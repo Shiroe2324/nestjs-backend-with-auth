@@ -8,7 +8,9 @@ import ms from 'ms';
 import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
+import { Role } from '@/entities/role.entity';
 import { User } from '@/entities/user.entity';
+import { Roles } from '@/enums/roles.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
 import { JwtAccessService } from '@/modules/shared/jwt-access/jwt-access.service';
 import { JwtRefreshService } from '@/modules/shared/jwt-refresh/jwt-refresh.service';
@@ -21,6 +23,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly jwtAccessService: JwtAccessService,
     private readonly jwtRefreshService: JwtRefreshService,
     private readonly mailsService: MailsService,
@@ -95,9 +99,15 @@ export class AuthService {
       if (existingUser.email === email) throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
     }
 
+    const userRole = await this.roleRepository.findOneBy({ name: Roles.USER });
+
+    if (!userRole) {
+      throw new Error(this.i18n.t('auth.register.userRoleNotFound'));
+    }
+
     const hashedPassword = await hash(password, 10);
     const emailVerificationToken = randomBytes(32).toString('hex');
-    const user = this.userRepository.create({ username, email, password: hashedPassword, emailVerificationToken });
+    const user = this.userRepository.create({ username, email, password: hashedPassword, roles: [userRole], emailVerificationToken });
 
     await this.userRepository.save(user);
     this.mailsService.sendEmailVerificationEmail(email, emailVerificationToken);

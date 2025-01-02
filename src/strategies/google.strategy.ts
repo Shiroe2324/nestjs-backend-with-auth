@@ -7,7 +7,9 @@ import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Role } from '@/entities/role.entity';
 import { User } from '@/entities/user.entity';
+import { Roles } from '@/enums/roles.enum';
 import { Strategies } from '@/enums/strategies.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
 
@@ -18,6 +20,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
     private readonly i18n: I18nService<I18nTranslations>,
   ) {
@@ -49,8 +53,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
 
       const username = await this.generateUsername();
       const name = this.generateDisplayName(displayName);
+      const userRole = await this.roleRepository.findOneBy({ name: Roles.USER });
 
-      user = this.userRepository.create({ googleId, username, displayName: name, email, picture, isVerified: true });
+      if (!userRole) {
+        throw new Error(this.i18n.t('auth.register.userRoleNotFound'));
+      }
+
+      user = this.userRepository.create({ googleId, username, displayName: name, email, roles: [userRole], picture, isVerified: true });
       await this.userRepository.save(user);
       this.logger.log(`User ${user.id} has registered with Google`);
     }

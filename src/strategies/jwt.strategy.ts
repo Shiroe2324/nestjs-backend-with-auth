@@ -33,6 +33,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, Strategies.JWT) {
     const isTokenBlacklisted = await this.tokenBlacklistRepository.findOneBy({ token: payload.jti });
     if (isTokenBlacklisted) return null;
 
-    return await this.userRepository.findOneBy({ id: parseInt(payload.sub, 10) });
+    return await this.userRepository.findOne({ where: { id: parseInt(payload.sub, 10) }, relations: { roles: true } });
   }
 }

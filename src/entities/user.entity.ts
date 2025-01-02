@@ -1,8 +1,9 @@
 import { IsBoolean, IsDate, IsEmail, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, IsUrl, Length, Matches } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 import limitsConfig from '@/config/limits.config';
+import { Role } from '@/entities/role.entity';
 import { I18nTranslations } from '@/generated/i18n.generated';
 
 const { minUsernameLength, maxUsernameLength, minPasswordLength, maxPasswordLength, minDisplayNameLength, maxDisplayNameLength } = limitsConfig();
@@ -41,6 +42,10 @@ export class User {
   @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
   @Length(minPasswordLength, maxPasswordLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
   public password!: string | null;
+
+  @ManyToMany(() => Role, (role) => role.users, { cascade: true })
+  @JoinTable()
+  public roles!: Role[];
 
   @Column({ type: 'text', nullable: true, default: null })
   @IsOptional()

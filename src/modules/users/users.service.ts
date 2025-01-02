@@ -19,7 +19,13 @@ export class UsersService {
   ) {}
 
   public async findAll({ page = 1, limit = 10, order = Order.ASC, orderBy = OrderBy.ID }: FindAllUsersOptions) {
-    const [users, total] = await this.userRepository.findAndCount({ skip: (page - 1) * limit, take: limit, order: { [orderBy]: order } });
+    const [users, total] = await this.userRepository.findAndCount({
+      relations: ['role'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { [orderBy]: order },
+    });
+
     return { total, page, limit, users };
   }
 
@@ -27,9 +33,9 @@ export class UsersService {
     let user: User | null | undefined;
 
     if (typeof identifier === 'number' || !isNaN(Number(identifier))) {
-      user = await this.userRepository.findOneBy({ id: parseInt(identifier.toString(), 10) });
+      user = await this.userRepository.findOne({ where: { id: parseInt(identifier.toString(), 10) }, relations: { roles: true } });
     } else if (typeof identifier === 'string') {
-      user = await this.userRepository.findOneBy({ username: identifier });
+      user = await this.userRepository.findOne({ where: { username: identifier }, relations: { roles: true } });
     }
 
     if (!user) {

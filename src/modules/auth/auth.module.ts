@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { Role } from '@/entities/role.entity';
 import { User } from '@/entities/user.entity';
 import { AuthController } from '@/modules/auth/auth.controller';
 import { AuthService } from '@/modules/auth/auth.service';
@@ -11,7 +12,7 @@ import { GoogleStrategy } from '@/strategies/google.strategy';
 import { JwtStrategy } from '@/strategies/jwt.strategy';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), JwtAccessModule, JwtRefreshModule, MailsModule],
+  imports: [TypeOrmModule.forFeature([User, Role]), JwtAccessModule, JwtRefreshModule, MailsModule],
   providers: [AuthService, JwtStrategy, GoogleStrategy],
   controllers: [AuthController],
 })

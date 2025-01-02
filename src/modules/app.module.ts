@@ -13,6 +13,9 @@ import googleConfig from '@/config/google.config';
 import jwtConfig from '@/config/jwt.config';
 import limitsConfig from '@/config/limits.config';
 import mainConfig from '@/config/main.config';
+import { Role } from '@/entities/role.entity';
+import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { User } from '@/entities/user.entity';
 import { Strategies } from '@/enums/strategies.enum';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { TasksModule } from '@/modules/shared/tasks/tasks.module';
@@ -46,7 +49,7 @@ import { resolvePath } from '@/utils/resolve-path';
         password: configService.getOrThrow('database.password'),
         database: configService.getOrThrow('database.name'),
         synchronize: configService.getOrThrow('main.isDevelopment'),
-        entities: ['./entities/**/*.entity.ts'],
+        entities: [User, Role, TokenBlacklist],
       }),
     }),
     ThrottlerModule.forRoot([

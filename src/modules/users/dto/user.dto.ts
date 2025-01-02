@@ -1,4 +1,6 @@
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
+
+import { Role } from '@/entities/role.entity';
 
 export class UserDto {
   @Expose()
@@ -15,6 +17,10 @@ export class UserDto {
 
   @Exclude()
   public password!: string | null;
+
+  @Expose()
+  @Transform(({ value }) => value.map((role: Role) => role.name))
+  public roles!: Role[];
 
   @Expose()
   public picture!: string | null;

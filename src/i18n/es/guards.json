@@ -1,5 +1,8 @@
 {
   "jwt": {
     "invalid": "No se ha podido verificar el token de autenticación"
+  },
+  "roles": {
+    "forbidden": "No tienes los permisos necesarios para realizar esta acción, necesitas uno de los siguientes roles: {roles}"
   }
 }

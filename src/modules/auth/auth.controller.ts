@@ -49,8 +49,8 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   public async register(@Body() registerDto: RegisterDto) {
-    const { username, email, password } = registerDto;
-    return await this.authService.register(username, email, password);
+    const { email, password } = registerDto;
+    return await this.authService.register(email, password);
   }
 
   @Post('verify-email')

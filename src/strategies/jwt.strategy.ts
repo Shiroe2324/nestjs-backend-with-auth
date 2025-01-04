@@ -6,7 +6,7 @@ import { Request } from 'express';
 import { Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 
-import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { Token } from '@/entities/token.entity';
 import { User } from '@/entities/user.entity';
 import { Strategies } from '@/enums/strategies.enum';
 import { AuthJwtPayload } from '@/types/common';
@@ -18,8 +18,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, Strategies.JWT) {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(TokenBlacklist)
-    private readonly tokenBlacklistRepository: Repository<TokenBlacklist>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
     private readonly configService: ConfigService,
   ) {
     super({
@@ -30,9 +30,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, Strategies.JWT) {
   }
 
   public async validate(payload: AuthJwtPayload) {
-    const isTokenBlacklisted = await this.tokenBlacklistRepository.findOneBy({ token: payload.jti });
+    const isTokenBlacklisted = await this.tokenRepository.findOneBy({ content: payload.jti, isBlacklisted: true });
     if (isTokenBlacklisted) return null;
 
-    return await this.userRepository.findOne({ where: { id: parseInt(payload.sub, 10) }, relations: { roles: true } });
+    const user = await this.userRepository.findOne({ where: { id: parseInt(payload.sub, 10) }, relations: { roles: true, picture: true } });
+
+    return user;
   }
 }

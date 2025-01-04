@@ -1,9 +1,23 @@
-import { IsBoolean, IsDate, IsEmail, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, IsUrl, Length, Matches } from 'class-validator';
+import { IsBoolean, IsDate, IsEmail, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, Length, Matches } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  JoinTable,
+  ManyToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 import limitsConfig from '@/config/limits.config';
+import { Picture } from '@/entities/picture.entity';
 import { Role } from '@/entities/role.entity';
+import { Token } from '@/entities/token.entity';
 import { I18nTranslations } from '@/generated/i18n.generated';
 
 const { minUsernameLength, maxUsernameLength, minPasswordLength, maxPasswordLength, minDisplayNameLength, maxDisplayNameLength } = limitsConfig();
@@ -15,7 +29,7 @@ export class User {
   @IsPositive({ message: i18nValidationMessage<I18nTranslations>('validations.POSITIVE') })
   public id!: number;
 
-  @Column({ type: 'varchar', unique: true, nullable: true, default: null })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   @IsOptional()
   @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
   public googleId!: string | null;
@@ -27,7 +41,7 @@ export class User {
   @Length(minUsernameLength, maxUsernameLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
   public username!: string;
 
-  @Column({ type: 'varchar', nullable: true, default: null, length: maxDisplayNameLength })
+  @Column({ type: 'varchar', nullable: true, length: maxDisplayNameLength })
   @IsOptional()
   @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
   @Length(minDisplayNameLength, maxDisplayNameLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
@@ -37,45 +51,31 @@ export class User {
   @IsEmail({}, { message: i18nValidationMessage<I18nTranslations>('validations.EMAIL') })
   public email!: string;
 
-  @Column({ type: 'text', nullable: true, default: null })
+  @Column({ type: 'text', nullable: true })
   @IsOptional()
   @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
   @Length(minPasswordLength, maxPasswordLength, { message: i18nValidationMessage<I18nTranslations>('validations.LENGTH') })
   public password!: string | null;
 
-  @ManyToMany(() => Role, (role) => role.users, { cascade: true })
-  @JoinTable()
-  public roles!: Role[];
-
-  @Column({ type: 'text', nullable: true, default: null })
-  @IsOptional()
-  @IsUrl({}, { message: i18nValidationMessage<I18nTranslations>('validations.URL') })
-  public picture!: string | null;
-
-  @Column({ type: 'text', nullable: true, default: null })
-  @IsOptional()
-  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
-  public picturePublicId!: string | null;
-
   @Column({ default: false })
   @IsBoolean({ message: i18nValidationMessage<I18nTranslations>('validations.BOOLEAN') })
   public isVerified!: boolean;
 
-  @Column({ type: 'text', nullable: true, default: null })
-  @IsOptional()
-  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
-  public emailVerificationToken!: string | null;
+  @ManyToMany(() => Role, (role) => role.users, { cascade: true })
+  @JoinTable()
+  public roles!: Role[];
 
-  @Column({ type: 'text', nullable: true, default: null })
-  @IsOptional()
-  @IsString({ message: i18nValidationMessage<I18nTranslations>('validations.STRING') })
-  @IsNotEmpty({ message: i18nValidationMessage<I18nTranslations>('validations.NOT_EMPTY') })
-  public resetPasswordToken!: string | null;
+  @OneToOne(() => Picture, { cascade: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  public picture!: Picture | null;
 
-  @Column({ type: 'timestamp', nullable: true, default: null })
-  @IsOptional()
-  @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
-  public resetPasswordExpires!: Date | null;
+  @OneToOne(() => Token, { cascade: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  public emailVerificationToken!: Token | null;
+
+  @OneToOne(() => Token, { cascade: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  public resetPasswordToken!: Token | null;
 
   @CreateDateColumn()
   @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
@@ -84,4 +84,13 @@ export class User {
   @UpdateDateColumn()
   @IsDate({ message: i18nValidationMessage<I18nTranslations>('validations.DATE') })
   public updatedAt!: Date;
+
+  @BeforeInsert()
+  public generateUsername() {
+    if (this.username) {
+      this.username = this.username.toLowerCase();
+    } else {
+      this.username = `user${uuidv4().slice(0, 8)}`;
+    }
+  }
 }

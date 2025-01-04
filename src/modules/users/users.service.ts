@@ -1,42 +1,50 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { FindOptionsRelations, Repository } from 'typeorm';
 
+import { Picture } from '@/entities/picture.entity';
 import { User } from '@/entities/user.entity';
-import { Order, OrderBy } from '@/enums/find-all-users.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
 import { CloudinaryService } from '@/modules/shared/cloudinary/cloudinary.service';
 import { FindAllUsersOptions } from '@/types/users';
 
 @Injectable()
 export class UsersService {
+  private readonly userRelations: FindOptionsRelations<User> = { roles: true, picture: true };
+
   constructor(
+    @InjectRepository(Picture)
+    private readonly pictureRepository: Repository<Picture>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly cloudinaryService: CloudinaryService,
     private readonly i18n: I18nService<I18nTranslations>,
   ) {}
 
-  public async findAll({ page = 1, limit = 10, order = Order.ASC, orderBy = OrderBy.ID }: FindAllUsersOptions) {
+  public async findAll(options: FindAllUsersOptions) {
+    const { page, limit, order, orderBy } = options;
+
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const relations = this.userRelations;
+
     const [users, total] = await this.userRepository.findAndCount({
-      relations: ['role'],
-      skip: (page - 1) * limit,
-      take: limit,
+      skip,
+      take,
       order: { [orderBy]: order },
+      relations,
     });
 
     return { total, page, limit, users };
   }
 
   public async findOne(identifier: number | string) {
-    let user: User | null | undefined;
+    const isIdentifierNumeric = typeof identifier === 'number' || !isNaN(Number(identifier));
+    const where = isIdentifierNumeric ? { id: parseInt(identifier.toString(), 10) } : { username: identifier };
+    const relations = this.userRelations;
 
-    if (typeof identifier === 'number' || !isNaN(Number(identifier))) {
-      user = await this.userRepository.findOne({ where: { id: parseInt(identifier.toString(), 10) }, relations: { roles: true } });
-    } else if (typeof identifier === 'string') {
-      user = await this.userRepository.findOne({ where: { username: identifier }, relations: { roles: true } });
-    }
+    const user = await this.userRepository.findOne({ where, relations });
 
     if (!user) {
       throw new NotFoundException(this.i18n.t('users.findOne.notFound'));
@@ -48,54 +56,19 @@ export class UsersService {
   public async delete(identifier: number | string) {
     const user = await this.findOne(identifier);
 
-    if (user.picturePublicId) {
-      await this.cloudinaryService.deleteFile(user.picturePublicId);
-    }
-
+    await this.deletePictureIfExists(user);
     await this.userRepository.remove(user);
 
     return { user, message: this.i18n.t('users.delete.success') };
   }
 
-  public async update(identifier: number | string, data: Partial<User>) {
-    const user = await this.findOne(identifier);
-    const initialUser = { ...user };
-
-    if (!data.username && !data.displayName) {
-      throw new NotFoundException(this.i18n.t('users.update.noData'));
-    }
-
-    if (data.username && data.username !== user.username) {
-      if (await this.userRepository.existsBy({ username: data.username })) {
-        throw new ConflictException(this.i18n.t('users.update.usernameInUse'));
-      }
-
-      user.username = data.username;
-    }
-
-    if (data.displayName && data.displayName !== user.displayName) {
-      user.displayName = data.displayName;
-    }
-
-    if (JSON.stringify(initialUser) === JSON.stringify(user)) {
-      throw new BadRequestException(this.i18n.t('users.update.noChanges'));
-    }
-
-    await this.userRepository.save(user);
-
-    return { user, message: this.i18n.t('users.update.success') };
-  }
-
   public async updatePicture(identifier: number | string, picture: Express.Multer.File) {
     const user = await this.findOne(identifier);
 
-    if (user.picturePublicId) {
-      await this.cloudinaryService.deleteFile(user.picturePublicId);
-    }
-
     const result = await this.cloudinaryService.uploadFile(picture, 'pictures');
-    user.picture = result.secure_url;
-    user.picturePublicId = result.public_id;
+    user.picture = this.pictureRepository.create({ url: result.secure_url, publicId: result.public_id });
+
+    await this.deletePictureIfExists(user);
     await this.userRepository.save(user);
 
     return { user, message: this.i18n.t('users.updatePicture.success') };
@@ -108,14 +81,44 @@ export class UsersService {
       throw new NotFoundException(this.i18n.t('users.deletePicture.notFound'));
     }
 
-    if (user.picturePublicId) {
-      await this.cloudinaryService.deleteFile(user.picturePublicId);
-      user.picturePublicId = null;
-    }
-
     user.picture = null;
-    await this.userRepository.save(user);
+
+    await this.deletePictureIfExists(user);
 
     return { user, message: this.i18n.t('users.deletePicture.success') };
+  }
+
+  public async update(identifier: number | string, data: Partial<User>) {
+    const user = await this.findOne(identifier);
+    const fieldsToUpdate = Object.keys(data) as Array<keyof User>;
+
+    if (!fieldsToUpdate.length) {
+      throw new BadRequestException(this.i18n.t('users.update.noData'));
+    }
+
+    if (data.username && data.username !== user.username) {
+      const isUsernameTaken = await this.userRepository.existsBy({ username: data.username });
+      if (isUsernameTaken) throw new ConflictException(this.i18n.t('users.update.usernameInUse'));
+      user.username = data.username;
+    }
+
+    if (data.displayName && data.displayName !== user.displayName) {
+      user.displayName = data.displayName;
+    }
+
+    if (fieldsToUpdate.every((field) => data[field] === user[field])) {
+      throw new BadRequestException(this.i18n.t('users.update.noChanges'));
+    }
+
+    await this.userRepository.save(user);
+
+    return { user, message: this.i18n.t('users.update.success') };
+  }
+
+  private async deletePictureIfExists(user: User) {
+    if (user.picture?.publicId) {
+      await this.cloudinaryService.deleteFile(user.picture.publicId);
+      await this.pictureRepository.remove(user.picture);
+    }
   }
 }

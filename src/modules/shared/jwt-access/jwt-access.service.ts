@@ -3,14 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { Token } from '@/entities/token.entity';
 import { AuthJwtPayload } from '@/types/common';
 
 @Injectable()
 export class JwtAccessService {
   constructor(
-    @InjectRepository(TokenBlacklist)
-    private readonly tokenBlacklistRepository: Repository<TokenBlacklist>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -27,14 +27,15 @@ export class JwtAccessService {
   }
 
   public async setTokenBlacklist(token: string) {
-    const payload = this.decodeToken(token);
-    const blacklistedToken = this.tokenBlacklistRepository.create({ token: payload.jti });
-    await this.tokenBlacklistRepository.save(blacklistedToken);
+    const { jti, exp } = this.decodeToken(token);
+    const expirationDate = new Date(exp * 1000);
+    const blacklistedToken = this.tokenRepository.create({ content: jti, expirationDate, isBlacklisted: true });
+    await this.tokenRepository.save(blacklistedToken);
   }
 
   public async isTokenBlacklisted(token: string) {
     const payload = this.decodeToken(token);
-    const blacklistedToken = await this.tokenBlacklistRepository.findOneBy({ token: payload.jti });
+    const blacklistedToken = await this.tokenRepository.findOneBy({ content: payload.jti, isBlacklisted: true });
     return !!blacklistedToken;
   }
 }

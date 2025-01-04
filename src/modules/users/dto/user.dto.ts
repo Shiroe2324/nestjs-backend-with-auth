@@ -1,6 +1,8 @@
 import { Exclude, Expose, Transform } from 'class-transformer';
 
+import { Picture } from '@/entities/picture.entity';
 import { Role } from '@/entities/role.entity';
+import { Token } from '@/entities/token.entity';
 
 export class UserDto {
   @Expose()
@@ -23,22 +25,17 @@ export class UserDto {
   public roles!: Role[];
 
   @Expose()
-  public picture!: string | null;
-
-  @Exclude()
-  public picturePublicId!: string | null;
+  @Transform(({ value }) => value?.url || null)
+  public picture!: Picture | null;
 
   @Expose()
   public isVerified!: boolean;
 
   @Exclude()
-  public emailVerificationToken!: string | null;
+  public emailVerificationToken!: Token | null;
 
   @Exclude()
-  public resetPasswordToken!: string | null;
-
-  @Exclude()
-  public resetPasswordExpires!: Date | null;
+  public resetPasswordToken!: Token | null;
 
   @Expose()
   public createdAt!: Date;

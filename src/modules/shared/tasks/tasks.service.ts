@@ -6,7 +6,7 @@ import ms from 'ms';
 import { LessThan, Repository } from 'typeorm';
 
 import { Role } from '@/entities/role.entity';
-import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { Token } from '@/entities/token.entity';
 import { User } from '@/entities/user.entity';
 import { Roles } from '@/enums/roles.enum';
 
@@ -15,12 +15,12 @@ export class TasksService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TasksService.name);
 
   constructor(
-    @InjectRepository(TokenBlacklist)
-    private readonly tokenBlacklistRepository: Repository<TokenBlacklist>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -48,16 +48,16 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  public async clearTokenBlacklistTask() {
+  public async clearExpiredTokensTask() {
     try {
-      this.logger.log('Clearing token blacklist...');
+      this.logger.log('Clearing expired tokens...');
 
-      const cutoffDate = new Date(Date.now() - this.getRefreshTokenExpiration);
-      const result = await this.tokenBlacklistRepository.delete({ createdAt: LessThan(cutoffDate) });
+      const cutoffDate = new Date();
+      const result = await this.tokenRepository.delete({ expirationDate: LessThan(cutoffDate) });
 
-      this.logger.log(`Removed ${result.affected} expired tokens from the blacklist`);
+      this.logger.log(`Removed ${result.affected} expired tokens`);
     } catch (error) {
-      this.logger.error('Failed to clear expired tokens from the blacklist', error instanceof Error ? error.stack : error);
+      this.logger.error('Failed to clear expired tokens:', error instanceof Error ? error.stack : error);
     }
   }
 
@@ -72,23 +72,6 @@ export class TasksService implements OnApplicationBootstrap {
       this.logger.log(`Removed ${result.affected} users without verification`);
     } catch (error) {
       this.logger.error('Failed to clear users without verification', error instanceof Error ? error.stack : error);
-    }
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  public async removeResetPasswordTask() {
-    try {
-      this.logger.log('Removing reset password tokens...');
-
-      const cutoffDate = new Date(Date.now() - this.getResetPasswordExpiration);
-      const result = await this.userRepository.update(
-        { resetPasswordExpires: LessThan(cutoffDate) },
-        { resetPasswordToken: null, resetPasswordExpires: null },
-      );
-
-      this.logger.log(`Removed reset password tokens from ${result.affected} users`);
-    } catch (error) {
-      this.logger.error('Failed to remove reset password tokens', error instanceof Error ? error.stack : error);
     }
   }
 

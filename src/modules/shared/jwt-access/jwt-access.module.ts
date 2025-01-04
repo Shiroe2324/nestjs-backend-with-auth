@@ -4,12 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 
-import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { Token } from '@/entities/token.entity';
 import { JwtAccessService } from '@/modules/shared/jwt-access/jwt-access.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TokenBlacklist]),
+    TypeOrmModule.forFeature([Token]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

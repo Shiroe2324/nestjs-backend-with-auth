@@ -9,6 +9,7 @@ import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
 import { Role } from '@/entities/role.entity';
+import { Token } from '@/entities/token.entity';
 import { User } from '@/entities/user.entity';
 import { Roles } from '@/enums/roles.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
@@ -21,10 +22,12 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Token)
+    private readonly tokenRepository: Repository<Token>,
     private readonly jwtAccessService: JwtAccessService,
     private readonly jwtRefreshService: JwtRefreshService,
     private readonly mailsService: MailsService,
@@ -37,9 +40,13 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException(this.i18n.t('auth.login.userNotFound'));
-    } else if (user.googleId || !user.password) {
+    }
+
+    if (user.googleId || !user.password) {
       throw new ForbiddenException(this.i18n.t('auth.login.googleAuth'));
-    } else if (!user.isVerified) {
+    }
+
+    if (!user.isVerified) {
       throw new ForbiddenException(this.i18n.t('auth.login.emailNotVerified'));
     }
 
@@ -91,12 +98,11 @@ export class AuthService {
     return { accessToken, newRefreshToken, message: this.i18n.t('auth.refreshTokens.success') };
   }
 
-  public async register(username: string, email: string, password: string) {
-    const existingUser = await this.userRepository.findOneBy([{ username }, { email }]);
+  public async register(email: string, password: string) {
+    const existingUser = await this.userRepository.findOneBy({ email });
 
     if (existingUser) {
-      if (existingUser.username === username) throw new ConflictException(this.i18n.t('auth.register.usernameInUse'));
-      if (existingUser.email === email) throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
+      throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
     }
 
     const userRole = await this.roleRepository.findOneBy({ name: Roles.USER });
@@ -107,7 +113,10 @@ export class AuthService {
 
     const hashedPassword = await hash(password, 10);
     const emailVerificationToken = randomBytes(32).toString('hex');
-    const user = this.userRepository.create({ username, email, password: hashedPassword, roles: [userRole], emailVerificationToken });
+    const expirationDate = new Date(Date.now() + this.getEmailExpiration);
+
+    const token = this.tokenRepository.create({ content: emailVerificationToken, expirationDate });
+    const user = this.userRepository.create({ email, password: hashedPassword, roles: [userRole], emailVerificationToken: token });
 
     await this.userRepository.save(user);
     this.mailsService.sendEmailVerificationEmail(email, emailVerificationToken);
@@ -117,17 +126,29 @@ export class AuthService {
   }
 
   public async verifyEmail(emailVerificationToken: string) {
-    const user = await this.userRepository.findOneBy({ emailVerificationToken });
-    if (!user) throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
+    const token = await this.tokenRepository.findOneBy({ content: emailVerificationToken });
 
-    if (user.createdAt < new Date(Date.now() - this.getEmailExpiration)) {
+    if (!token || !token.expirationDate) {
+      throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { emailVerificationToken: { id: token.id } },
+      relations: { emailVerificationToken: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
+    }
+
+    if (token.expirationDate < new Date()) {
       await this.userRepository.remove(user);
       throw new UnauthorizedException(this.i18n.t('auth.verifyEmail.expiredToken'));
     }
 
     user.isVerified = true;
-    user.emailVerificationToken = null;
 
+    await this.tokenRepository.remove(token);
     await this.userRepository.save(user);
 
     this.logger.log(`User ${user.id} has verified their email`);
@@ -139,17 +160,25 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException(this.i18n.t('auth.forgotPassword.userNotFound'));
-    } else if (!user.isVerified) {
+    }
+
+    if (!user.isVerified) {
       throw new ForbiddenException(this.i18n.t('auth.forgotPassword.emailNotVerified'));
-    } else if (user.googleId) {
+    }
+
+    if (user.googleId) {
       throw new ForbiddenException(this.i18n.t('auth.forgotPassword.googleAuth'));
-    } else if (user.resetPasswordExpires || user.resetPasswordToken) {
+    }
+
+    if (user.resetPasswordToken) {
       throw new ForbiddenException(this.i18n.t('auth.forgotPassword.pendingRequest'));
     }
 
     const resetPasswordToken = randomBytes(32).toString('hex');
-    user.resetPasswordToken = resetPasswordToken;
-    user.resetPasswordExpires = new Date(Date.now() + this.getResetPasswordExpiration);
+    const expirationDate = new Date(Date.now() + this.getResetPasswordExpiration);
+    const token = this.tokenRepository.create({ content: resetPasswordToken, expirationDate });
+
+    user.resetPasswordToken = token;
 
     await this.userRepository.save(user);
     this.mailsService.sendResetPasswordEmail(email, resetPasswordToken);
@@ -159,23 +188,34 @@ export class AuthService {
   }
 
   public async resetPassword(resetPasswordToken: string, newPassword: string) {
-    const user = await this.userRepository.findOneBy({ resetPasswordToken });
+    const token = await this.tokenRepository.findOneBy({ content: resetPasswordToken });
+
+    if (!token || !token.expirationDate) {
+      throw new NotFoundException(this.i18n.t('auth.resetPassword.invalidToken'));
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { resetPasswordToken: { id: token.id } },
+      relations: { resetPasswordToken: true },
+    });
 
     if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.resetPassword.invalidToken'));
-    } else if (!user.resetPasswordExpires) {
-      throw new ForbiddenException(this.i18n.t('auth.resetPassword.noRequestFound'));
-    } else if (user.resetPasswordExpires < new Date()) {
+      throw new NotFoundException(this.i18n.t('auth.resetPassword.noRequestFound'));
+    }
+
+    if (token.expirationDate < new Date()) {
       user.resetPasswordToken = null;
-      user.resetPasswordExpires = null;
+      user.resetPasswordToken = null;
+
       await this.userRepository.save(user);
+      this.tokenRepository.remove(token);
+
       throw new UnauthorizedException(this.i18n.t('auth.resetPassword.expiredToken'));
     }
 
     user.password = await hash(newPassword, 10);
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
 
+    await this.tokenRepository.remove(token);
     await this.userRepository.save(user);
 
     this.logger.log(`User ${user.id} has reset their password`);

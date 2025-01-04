@@ -3,12 +3,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Role } from '@/entities/role.entity';
-import { TokenBlacklist } from '@/entities/token-blacklist.entity';
+import { Token } from '@/entities/token.entity';
 import { User } from '@/entities/user.entity';
 import { TasksService } from '@/modules/shared/tasks/tasks.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role, TokenBlacklist]), ScheduleModule.forRoot()],
+  imports: [TypeOrmModule.forFeature([Role, Token, User]), ScheduleModule.forRoot()],
   providers: [TasksService],
   exports: [TasksService],
 })

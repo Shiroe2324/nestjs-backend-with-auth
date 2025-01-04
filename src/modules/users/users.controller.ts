@@ -51,7 +51,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public async update(@User('id') userId: number, @Body() body: UpdateDto) {
     const { user, message } = await this.usersService.update(userId, body);
-    return { user: new UserDto(user), message };
+    return { user: new MeDto(user), message };
   }
 
   @Delete('me')
@@ -59,7 +59,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public async delete(@User('id') userId: number) {
     const { user, message } = await this.usersService.delete(userId);
-    return { user: new UserDto(user), message };
+    return { user: new MeDto(user), message };
   }
 
   @Patch('me/picture')
@@ -68,7 +68,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public async updatePicture(@User('id') userId: number, @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File) {
     const { user, message } = await this.usersService.updatePicture(userId, picture);
-    return { user: new UserDto(user), message };
+    return { user: new MeDto(user), message };
   }
 
   @Delete('me/picture')
@@ -76,7 +76,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public async deletePicture(@User('id') userId: number) {
     const { user, message } = await this.usersService.deletePicture(userId);
-    return { user: new UserDto(user), message };
+    return { user: new MeDto(user), message };
   }
 
   @Get(':identifier')

@@ -65,10 +65,11 @@ export class UsersService {
   public async updatePicture(identifier: number | string, picture: Express.Multer.File) {
     const user = await this.findOne(identifier);
 
+    await this.deletePictureIfExists(user);
+
     const result = await this.cloudinaryService.uploadFile(picture, 'pictures');
     user.picture = this.pictureRepository.create({ url: result.secure_url, publicId: result.public_id });
 
-    await this.deletePictureIfExists(user);
     await this.userRepository.save(user);
 
     return { user, message: this.i18n.t('users.updatePicture.success') };
@@ -81,9 +82,9 @@ export class UsersService {
       throw new NotFoundException(this.i18n.t('users.deletePicture.notFound'));
     }
 
-    user.picture = null;
-
     await this.deletePictureIfExists(user);
+
+    user.picture = null;
 
     return { user, message: this.i18n.t('users.deletePicture.success') };
   }

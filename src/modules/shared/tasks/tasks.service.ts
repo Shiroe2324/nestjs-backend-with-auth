@@ -2,7 +2,6 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import ms from 'ms';
 import { LessThan, Repository } from 'typeorm';
 
 import { Role } from '@/entities/role.entity';
@@ -75,15 +74,7 @@ export class TasksService implements OnApplicationBootstrap {
     }
   }
 
-  private get getRefreshTokenExpiration() {
-    return ms(this.configService.getOrThrow<string>('jwt.refreshExpiration'));
-  }
-
   private get getEmailExpiration() {
     return this.configService.getOrThrow<number>('main.emailVerificationExpiration');
-  }
-
-  private get getResetPasswordExpiration() {
-    return this.configService.getOrThrow<number>('main.resetPasswordExpiration');
   }
 }

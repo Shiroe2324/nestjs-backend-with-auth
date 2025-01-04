@@ -37,7 +37,7 @@ import { resolvePath } from '@/utils/resolve-path';
         fallbackLanguage: configService.getOrThrow('main.defaultLanguage'),
         viewEngine: 'hbs',
         typesOutputPath: resolvePath('../src/generated/i18n.generated.ts'),
-        loaderOptions: { path: resolvePath('i18n/'), watch: configService.getOrThrow<boolean>('main.isDevelopment') },
+        loaderOptions: { path: resolvePath('locales/'), watch: configService.getOrThrow<boolean>('main.isDevelopment') },
       }),
     }),
     TypeOrmModule.forRootAsync({

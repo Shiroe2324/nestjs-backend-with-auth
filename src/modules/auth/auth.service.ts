@@ -3,8 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
-import { CookieOptions } from 'express';
-import ms from 'ms';
 import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
@@ -20,6 +18,9 @@ import { MailsService } from '@/modules/shared/mails/mails.service';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly emailExpiration = this.configService.getOrThrow<number>('main.emailVerificationExpiration');
+  private readonly resetPasswordExpiration = this.configService.getOrThrow<number>('main.resetPasswordExpiration');
+  private readonly googleRedirectUrl = this.configService.getOrThrow<string>('google.redirectUrl');
 
   constructor(
     @InjectRepository(Role)
@@ -36,31 +37,15 @@ export class AuthService {
   ) {}
 
   public async login(identifier: string, password: string) {
-    const user = await this.userRepository.findOneBy([{ username: identifier }, { email: identifier }]);
+    const user = await this.getVerifiedCredentialUser(identifier);
 
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.login.userNotFound'));
-    }
+    const isPasswordValid = await compare(password, user.password);
+    if (!isPasswordValid) throw new ForbiddenException(this.i18n.t('auth.invalidPassword'));
 
-    if (user.googleId || !user.password) {
-      throw new ForbiddenException(this.i18n.t('auth.login.googleAuth'));
-    }
-
-    if (!user.isVerified) {
-      throw new ForbiddenException(this.i18n.t('auth.login.emailNotVerified'));
-    }
-
-    const validPassword = await compare(password, user.password);
-
-    if (!validPassword) {
-      throw new ForbiddenException(this.i18n.t('auth.login.invalidPassword'));
-    }
-
-    const accessToken = this.jwtAccessService.generateToken(user.id);
-    const refreshToken = this.jwtRefreshService.generateToken(user.id);
+    const tokens = this.generateTokens(user.id);
 
     this.logger.log(`User ${user.id} has logged in`);
-    return { accessToken, refreshToken, message: this.i18n.t('auth.login.success') };
+    return { ...tokens, message: this.i18n.t('auth.login.success') };
   }
 
   public async logout(accessToken: string, refreshToken: string) {
@@ -68,7 +53,7 @@ export class AuthService {
     const refreshPayload = this.jwtRefreshService.verifyToken(refreshToken);
 
     if (accessPayload.sub !== refreshPayload.sub) {
-      throw new UnauthorizedException(this.i18n.t('auth.logout.invalidTokens'));
+      throw new UnauthorizedException(this.i18n.t('auth.invalidToken', { args: { count: 2 } }));
     }
 
     this.jwtAccessService.setTokenBlacklist(accessToken);
@@ -82,38 +67,28 @@ export class AuthService {
     const { sub } = this.jwtRefreshService.verifyToken(refreshToken);
 
     if (await this.jwtRefreshService.isTokenBlacklisted(refreshToken)) {
-      throw new UnauthorizedException(this.i18n.t('auth.refreshTokens.blacklisted'));
+      throw new UnauthorizedException(this.i18n.t('auth.invalidToken', { args: { count: 2 } }));
     }
 
     const user = await this.userRepository.findOneBy({ id: parseInt(sub, 10) });
+    if (!user) throw new NotFoundException(this.i18n.t('auth.userNotFound'));
 
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.refreshTokens.userNotFound'));
-    }
-
-    const accessToken = this.jwtAccessService.generateToken(user.id);
-    const newRefreshToken = this.jwtRefreshService.generateToken(user.id);
+    const tokens = this.generateTokens(user.id);
 
     this.logger.log(`User ${user.id} has refreshed their tokens`);
-    return { accessToken, newRefreshToken, message: this.i18n.t('auth.refreshTokens.success') };
+    return { ...tokens, message: this.i18n.t('auth.refreshTokens.success') };
   }
 
   public async register(email: string, password: string) {
     const existingUser = await this.userRepository.findOneBy({ email });
-
-    if (existingUser) {
-      throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
-    }
+    if (existingUser) throw new ConflictException(this.i18n.t('auth.emailInUse'));
 
     const userRole = await this.roleRepository.findOneBy({ name: Roles.USER });
-
-    if (!userRole) {
-      throw new Error(this.i18n.t('auth.register.userRoleNotFound'));
-    }
+    if (!userRole) throw new Error(this.i18n.t('auth.userRoleNotFound'));
 
     const hashedPassword = await hash(password, 10);
     const emailVerificationToken = randomBytes(32).toString('hex');
-    const expirationDate = new Date(Date.now() + this.getEmailExpiration);
+    const expirationDate = new Date(Date.now() + this.emailExpiration);
 
     const token = this.tokenRepository.create({ content: emailVerificationToken, expirationDate });
     const user = this.userRepository.create({ email, password: hashedPassword, roles: [userRole], emailVerificationToken: token });
@@ -126,24 +101,13 @@ export class AuthService {
   }
 
   public async verifyEmail(emailVerificationToken: string) {
-    const token = await this.tokenRepository.findOneBy({ content: emailVerificationToken });
-
-    if (!token || !token.expirationDate) {
-      throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
-    }
-
-    const user = await this.userRepository.findOne({
-      where: { emailVerificationToken: { id: token.id } },
-      relations: { emailVerificationToken: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.verifyEmail.invalidToken'));
-    }
+    const token = await this.getToken(emailVerificationToken);
+    const user = await this.getUserByToken(token, 'emailVerificationToken');
 
     if (token.expirationDate < new Date()) {
+      await this.tokenRepository.remove(token);
       await this.userRepository.remove(user);
-      throw new UnauthorizedException(this.i18n.t('auth.verifyEmail.expiredToken'));
+      throw new UnauthorizedException(this.i18n.t('auth.invalidToken', { args: { count: 1 } }));
     }
 
     user.isVerified = true;
@@ -156,27 +120,12 @@ export class AuthService {
   }
 
   public async forgotPassword(email: string) {
-    const user = await this.userRepository.findOneBy({ email });
-
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.forgotPassword.userNotFound'));
-    }
-
-    if (!user.isVerified) {
-      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.emailNotVerified'));
-    }
-
-    if (user.googleId) {
-      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.googleAuth'));
-    }
-
-    if (user.resetPasswordToken) {
-      throw new ForbiddenException(this.i18n.t('auth.forgotPassword.pendingRequest'));
-    }
-
     const resetPasswordToken = randomBytes(32).toString('hex');
-    const expirationDate = new Date(Date.now() + this.getResetPasswordExpiration);
+    const expirationDate = new Date(Date.now() + this.resetPasswordExpiration);
     const token = this.tokenRepository.create({ content: resetPasswordToken, expirationDate });
+
+    const user = await this.getVerifiedCredentialUser(email);
+    if (user.resetPasswordToken) throw new ForbiddenException(this.i18n.t('auth.forgotPassword.pendingRequest'));
 
     user.resetPasswordToken = token;
 
@@ -188,29 +137,12 @@ export class AuthService {
   }
 
   public async resetPassword(resetPasswordToken: string, newPassword: string) {
-    const token = await this.tokenRepository.findOneBy({ content: resetPasswordToken });
-
-    if (!token || !token.expirationDate) {
-      throw new NotFoundException(this.i18n.t('auth.resetPassword.invalidToken'));
-    }
-
-    const user = await this.userRepository.findOne({
-      where: { resetPasswordToken: { id: token.id } },
-      relations: { resetPasswordToken: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('auth.resetPassword.noRequestFound'));
-    }
+    const token = await this.getToken(resetPasswordToken);
+    const user = await this.getUserByToken(token, 'resetPasswordToken');
 
     if (token.expirationDate < new Date()) {
-      user.resetPasswordToken = null;
-      user.resetPasswordToken = null;
-
-      await this.userRepository.save(user);
-      this.tokenRepository.remove(token);
-
-      throw new UnauthorizedException(this.i18n.t('auth.resetPassword.expiredToken'));
+      await this.tokenRepository.remove(token);
+      throw new UnauthorizedException(this.i18n.t('auth.invalidToken', { args: { count: 1 } }));
     }
 
     user.password = await hash(newPassword, 10);
@@ -223,50 +155,43 @@ export class AuthService {
   }
 
   public async googleLogin(user: User) {
-    if (!user.googleId) {
-      throw new UnauthorizedException(this.i18n.t('auth.googleLogin.notGoogleAuth'));
-    }
+    if (!user.googleId) throw new UnauthorizedException(this.i18n.t('auth.userWithoutGoogleAuth'));
 
-    const accessToken = this.jwtAccessService.generateToken(user.id);
-    const refreshToken = this.jwtRefreshService.generateToken(user.id);
+    const tokens = this.generateTokens(user.id);
 
     this.logger.log(`User ${user.id} has logged in with Google`);
-    return { accessToken, refreshToken, redirectUrl: this.getGoogleRedirectUrl, message: this.i18n.t('auth.googleLogin.success') };
+    return { ...tokens, redirectUrl: this.googleRedirectUrl, message: this.i18n.t('auth.googleLogin.success') };
   }
 
-  public get getAccessTokenCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/', maxAge: ms(this.getJwtAccessExpiration) };
+  private generateTokens(userId: number) {
+    const accessToken = this.jwtAccessService.generateToken(userId);
+    const refreshToken = this.jwtRefreshService.generateToken(userId);
+
+    return { accessToken, refreshToken };
   }
 
-  public get getRefreshTokenCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/', maxAge: ms(this.getJwtRefreshExpiration) };
+  private async getToken(token: string) {
+    const foundToken = await this.tokenRepository.findOneBy({ content: token });
+    if (!foundToken) throw new NotFoundException(this.i18n.t('auth.invalidToken', { args: { count: 1 } }));
+
+    return foundToken;
   }
 
-  public get getClearCookieOptions(): CookieOptions {
-    return { httpOnly: true, secure: this.isProduction, sameSite: 'strict', path: '/' };
+  private async getUserByToken(token: Token, type: 'emailVerificationToken' | 'resetPasswordToken') {
+    const user = await this.userRepository.findOne({ where: { [type]: { id: token.id } }, relations: { [type]: true } });
+    if (!user) throw new NotFoundException(this.i18n.t('auth.invalidToken', { args: { count: 1 } }));
+
+    return user;
   }
 
-  private get getEmailExpiration() {
-    return this.configService.getOrThrow<number>('main.emailVerificationExpiration');
-  }
+  private async getVerifiedCredentialUser(identifier: string) {
+    const user = await this.userRepository.findOneBy([{ username: identifier }, { email: identifier }]);
+    if (!user) throw new NotFoundException(this.i18n.t('auth.userNotFound'));
 
-  private get getResetPasswordExpiration() {
-    return this.configService.getOrThrow<number>('main.resetPasswordExpiration');
-  }
+    if (user.googleId) throw new ForbiddenException(this.i18n.t('auth.userWithGoogleAuth'));
+    if (!user.password) throw new ForbiddenException(this.i18n.t('auth.userWithoutPassword'));
+    if (!user.isVerified) throw new ForbiddenException(this.i18n.t('auth.userWithEmailNotVerified'));
 
-  private get getGoogleRedirectUrl() {
-    return this.configService.getOrThrow<string>('google.redirectUrl');
-  }
-
-  private get getJwtAccessExpiration() {
-    return this.configService.getOrThrow<string>('jwt.accessExpiration');
-  }
-
-  private get getJwtRefreshExpiration() {
-    return this.configService.getOrThrow<string>('jwt.refreshExpiration');
-  }
-
-  private get isProduction() {
-    return this.configService.getOrThrow<boolean>('main.isProduction');
+    return user as User & { password: string };
   }
 }

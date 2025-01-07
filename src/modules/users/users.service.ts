@@ -11,8 +11,6 @@ import { FindAllUsersOptions } from '@/types/users';
 
 @Injectable()
 export class UsersService {
-  private readonly userRelations: FindOptionsRelations<User> = { roles: true, picture: true };
-
   constructor(
     @InjectRepository(Picture)
     private readonly pictureRepository: Repository<Picture>,
@@ -27,14 +25,9 @@ export class UsersService {
 
     const skip = (page - 1) * limit;
     const take = limit;
-    const relations = this.userRelations;
+    const relations: FindOptionsRelations<User> = { roles: true, picture: true };
 
-    const [users, total] = await this.userRepository.findAndCount({
-      skip,
-      take,
-      order: { [orderBy]: order },
-      relations,
-    });
+    const [users, total] = await this.userRepository.findAndCount({ skip, take, relations, order: { [orderBy]: order } });
 
     return { total, page, limit, users };
   }
@@ -42,13 +35,10 @@ export class UsersService {
   public async findOne(identifier: number | string) {
     const isIdentifierNumeric = typeof identifier === 'number' || !isNaN(Number(identifier));
     const where = isIdentifierNumeric ? { id: parseInt(identifier.toString(), 10) } : { username: identifier };
-    const relations = this.userRelations;
+    const relations: FindOptionsRelations<User> = { roles: true, picture: true };
 
     const user = await this.userRepository.findOne({ where, relations });
-
-    if (!user) {
-      throw new NotFoundException(this.i18n.t('users.findOne.notFound'));
-    }
+    if (!user) throw new NotFoundException(this.i18n.t('users.findOne.notFound'));
 
     return user;
   }
@@ -77,10 +67,7 @@ export class UsersService {
 
   public async deletePicture(identifier: number | string) {
     const user = await this.findOne(identifier);
-
-    if (!user.picture) {
-      throw new NotFoundException(this.i18n.t('users.deletePicture.notFound'));
-    }
+    if (!user.picture) throw new NotFoundException(this.i18n.t('users.deletePicture.notFound'));
 
     await this.deletePictureIfExists(user);
 
@@ -91,11 +78,9 @@ export class UsersService {
 
   public async update(identifier: number | string, data: Partial<User>) {
     const user = await this.findOne(identifier);
-    const fieldsToUpdate = Object.keys(data) as Array<keyof User>;
 
-    if (!fieldsToUpdate.length) {
-      throw new BadRequestException(this.i18n.t('users.update.noData'));
-    }
+    const fieldsToUpdate = Object.keys(data) as Array<keyof User>;
+    if (!fieldsToUpdate.length) throw new BadRequestException(this.i18n.t('users.update.noData'));
 
     if (data.username && data.username !== user.username) {
       const isUsernameTaken = await this.userRepository.existsBy({ username: data.username });

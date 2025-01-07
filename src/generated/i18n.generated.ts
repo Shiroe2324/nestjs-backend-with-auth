@@ -6,49 +6,43 @@ import { Path } from "nestjs-i18n";
 /* prettier-ignore */
 export type I18nTranslations = {
     "auth": {
+        "userNotFound": string;
+        "userWithGoogleAuth": string;
+        "userWithEmailNotVerified": string;
+        "userWithoutGoogleAuth": string;
+        "userWithoutPassword": string;
+        "userRoleNotFound": string;
+        "emailInUse": string;
+        "emailRequired": string;
+        "invalidPassword": string;
+        "invalidToken": {
+            "one": string;
+            "other": string;
+        };
         "login": {
-            "userNotFound": string;
-            "googleAuth": string;
-            "emailNotVerified": string;
-            "invalidPassword": string;
             "success": string;
         };
         "logout": {
-            "invalidTokens": string;
             "success": string;
         };
         "refreshTokens": {
-            "blacklisted": string;
-            "userNotFound": string;
             "success": string;
         };
         "register": {
-            "emailRequired": string;
-            "userRoleNotFound": string;
-            "usernameInUse": string;
-            "emailInUse": string;
             "success": string;
         };
         "verifyEmail": {
-            "invalidToken": string;
-            "expiredToken": string;
             "success": string;
         };
         "forgotPassword": {
-            "userNotFound": string;
-            "emailNotVerified": string;
-            "googleAuth": string;
             "pendingRequest": string;
             "success": string;
         };
         "resetPassword": {
-            "invalidToken": string;
             "noRequestFound": string;
-            "expiredToken": string;
             "success": string;
         };
         "googleLogin": {
-            "notGoogleAuth": string;
             "success": string;
         };
     };

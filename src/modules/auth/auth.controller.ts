@@ -7,6 +7,7 @@ import { User as UserEntity } from '@/entities/user.entity';
 import { GoogleAuthGuard } from '@/guards/google-auth.guard';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { AuthService } from '@/modules/auth/auth.service';
+import { CookieService } from '@/modules/auth/cookie.service';
 import { ForgotPasswordDto } from '@/modules/auth/dto/forgot-password.dto';
 import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { RegisterDto } from '@/modules/auth/dto/register.dto';
@@ -15,15 +16,17 @@ import { VerifyEmailDto } from '@/modules/auth/dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly cookieService: CookieService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   public async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { identifier, password } = loginDto;
     const { accessToken, refreshToken, message } = await this.authService.login(identifier, password);
-    res.cookie('accessToken', accessToken, this.authService.getAccessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, this.authService.getRefreshTokenCookieOptions);
+    this.cookieService.setCookies(res, accessToken, refreshToken);
     return { message };
   }
 
@@ -32,17 +35,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   public async logout(@Cookies() cookies: Record<string, string>, @Res({ passthrough: true }) res: Response) {
     const { message } = await this.authService.logout(cookies['accessToken'], cookies['refreshToken']);
-    res.clearCookie('accessToken', this.authService.getClearCookieOptions);
-    res.clearCookie('refreshToken', this.authService.getClearCookieOptions);
+    this.cookieService.clearCookies(res);
     return { message };
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   public async refresh(@Cookies('refreshToken') refreshToken: string, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, newRefreshToken, message } = await this.authService.refreshTokens(refreshToken);
-    res.cookie('accessToken', accessToken, this.authService.getAccessTokenCookieOptions);
-    res.cookie('refreshToken', newRefreshToken, this.authService.getRefreshTokenCookieOptions);
+    const { accessToken, refreshToken: newRefreshToken, message } = await this.authService.refreshTokens(refreshToken);
+    this.cookieService.setCookies(res, accessToken, newRefreshToken);
     return { message };
   }
 
@@ -84,8 +85,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   public async googleAuthRedirect(@User() user: UserEntity, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, redirectUrl } = await this.authService.googleLogin(user);
-    res.cookie('accessToken', accessToken, this.authService.getAccessTokenCookieOptions);
-    res.cookie('refreshToken', refreshToken, this.authService.getRefreshTokenCookieOptions);
+    this.cookieService.setCookies(res, accessToken, refreshToken);
     return res.redirect(redirectUrl);
   }
 }

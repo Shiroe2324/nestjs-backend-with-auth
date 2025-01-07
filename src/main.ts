@@ -20,10 +20,8 @@ async function bootstrap() {
   const validationPipe = new I18nValidationPipe({
     whitelist: true,
     transform: true,
-    validationError: { value: true },
     transformOptions: { enableImplicitConversion: true },
     errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-    stopAtFirstError: true,
   });
 
   const validationExceptionFilter = new I18nValidationExceptionFilter({

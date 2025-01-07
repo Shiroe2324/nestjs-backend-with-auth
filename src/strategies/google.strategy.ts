@@ -12,6 +12,7 @@ import { User } from '@/entities/user.entity';
 import { Roles } from '@/enums/roles.enum';
 import { Strategies } from '@/enums/strategies.enum';
 import { I18nTranslations } from '@/generated/i18n.generated';
+import { parseDisplayName } from '@/utils/parse-display-name';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE) {
@@ -37,10 +38,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
 
   public async validate(_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) {
     const { id, displayName, emails, photos } = profile;
-
-    if (!emails || !emails.length) {
-      throw new BadRequestException(this.i18n.t('auth.register.emailRequired'));
-    }
+    if (!emails || !emails.length) throw new BadRequestException(this.i18n.t('auth.emailRequired'));
 
     let user = await this.userRepository.findOneBy({ googleId: id });
 
@@ -48,16 +46,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
       const googleId = id;
       const email = emails[0].value;
       const picture = photos ? this.pictureRepository.create({ url: photos[0].value }) : null;
-      const name = this.generateDisplayName(displayName);
+      const name = parseDisplayName(displayName);
 
       if (await this.userRepository.existsBy({ email })) {
-        throw new ConflictException(this.i18n.t('auth.register.emailInUse'));
+        throw new ConflictException(this.i18n.t('auth.emailInUse'));
       }
 
       const userRole = await this.roleRepository.findOneBy({ name: Roles.USER });
 
       if (!userRole) {
-        throw new Error(this.i18n.t('auth.register.userRoleNotFound'));
+        throw new Error(this.i18n.t('auth.userRoleNotFound'));
       }
 
       user = this.userRepository.create({ googleId, displayName: name, email, roles: [userRole], picture, isVerified: true });
@@ -66,19 +64,5 @@ export class GoogleStrategy extends PassportStrategy(Strategy, Strategies.GOOGLE
     }
 
     return done(null, user);
-  }
-
-  private generateDisplayName(displayName: string) {
-    const minDisplayNameLength = this.configService.getOrThrow<number>('limits.minDisplayNameLength');
-    const maxDisplayNameLength = this.configService.getOrThrow<number>('limits.maxDisplayNameLength');
-    let name: string | null = displayName;
-
-    if (name.length < minDisplayNameLength) {
-      name = null;
-    } else if (name.length > maxDisplayNameLength) {
-      name = name.slice(0, maxDisplayNameLength);
-    }
-
-    return name;
   }
 }

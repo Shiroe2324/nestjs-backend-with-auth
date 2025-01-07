@@ -8,6 +8,8 @@ import { I18nTranslations } from '@/generated/i18n.generated';
 @Injectable()
 export class MailsService {
   private readonly logger = new Logger(MailsService.name);
+  private readonly emailVerificationUrl = this.configService.getOrThrow<string>('main.emailVerificationUrl');
+  private readonly resetPasswordUrl = this.configService.getOrThrow<string>('main.resetPasswordUrl');
 
   constructor(
     private readonly mailerService: MailerService,
@@ -16,7 +18,7 @@ export class MailsService {
   ) {}
 
   public async sendEmailVerificationEmail(email: string, emailVerificationToken: string) {
-    const emailVerificationLink = `${this.getEmailVerificationUrl}?emailVerificationToken=${emailVerificationToken}`;
+    const emailVerificationLink = `${this.emailVerificationUrl}?emailVerificationToken=${emailVerificationToken}`;
 
     try {
       await this.mailerService.sendMail({
@@ -33,27 +35,19 @@ export class MailsService {
   }
 
   public async sendResetPasswordEmail(email: string, resetPasswordToken: string) {
-    const resetPasswordLink = `${this.getResetPasswordUrl}?resetPasswordToken=${resetPasswordToken}`;
+    const resetPasswordLink = `${this.resetPasswordUrl}?resetPasswordToken=${resetPasswordToken}`;
 
     try {
       await this.mailerService.sendMail({
         to: email,
         subject: this.i18n.t('mails.resetPassword.subject'),
         template: 'reset-password',
-        context: { resetPasswordLink: resetPasswordLink },
+        context: { resetPasswordLink },
       });
 
       this.logger.log(`Password reset email sent to ${email}`);
     } catch (error) {
       this.logger.error(`Failed to send password reset email to ${email}`, error instanceof Error ? error.stack : error);
     }
-  }
-
-  private get getEmailVerificationUrl() {
-    return this.configService.getOrThrow<string>('main.emailVerificationUrl');
-  }
-
-  private get getResetPasswordUrl() {
-    return this.configService.getOrThrow<string>('main.resetPasswordUrl');
   }
 }

@@ -81,7 +81,7 @@ export class UsersController {
 
   @Get(':identifier')
   @HttpCode(HttpStatus.OK)
-  public async findOne(@Param('identifier') identifier: number | string) {
+  public async findOne(@Param('identifier') identifier: string) {
     return new UserDto(await this.usersService.findOne(identifier));
   }
 
@@ -89,7 +89,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @RequiredRoles([Roles.ADMIN])
   @HttpCode(HttpStatus.OK)
-  public async updateOne(@Param('identifier') identifier: number | string, @Body() body: UpdateDto) {
+  public async updateOne(@Param('identifier') identifier: string, @Body() body: UpdateDto) {
     const { user, message } = await this.usersService.update(identifier, body);
     return { user: new UserDto(user), message };
   }
@@ -98,7 +98,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @RequiredRoles([Roles.ADMIN])
   @HttpCode(HttpStatus.OK)
-  public async deleteOne(@Param('identifier') identifier: number | string) {
+  public async deleteOne(@Param('identifier') identifier: string) {
     const { user, message } = await this.usersService.delete(identifier);
     return { user: new UserDto(user), message };
   }
@@ -108,10 +108,7 @@ export class UsersController {
   @RequiredRoles([Roles.ADMIN])
   @UseInterceptors(FileInterceptor('picture'))
   @HttpCode(HttpStatus.OK)
-  public async updateOnePicture(
-    @Param('identifier') identifier: number | string,
-    @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File,
-  ) {
+  public async updateOnePicture(@Param('identifier') identifier: string, @UploadedFile(new ParseImageFilePipe()) picture: Express.Multer.File) {
     const { user, message } = await this.usersService.updatePicture(identifier, picture);
     return { user: new UserDto(user), message };
   }
@@ -120,7 +117,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @RequiredRoles([Roles.ADMIN])
   @HttpCode(HttpStatus.OK)
-  public async deleteOnePicture(@Param('identifier') identifier: number | string) {
+  public async deleteOnePicture(@Param('identifier') identifier: string) {
     const { user, message } = await this.usersService.deletePicture(identifier);
     return { user: new UserDto(user), message };
   }

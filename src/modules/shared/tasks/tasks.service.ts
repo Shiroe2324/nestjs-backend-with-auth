@@ -12,6 +12,7 @@ import { Roles } from '@/enums/roles.enum';
 @Injectable()
 export class TasksService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TasksService.name);
+  private readonly emailExpiration = this.configService.getOrThrow<number>('main.emailVerificationExpiration');
 
   constructor(
     @InjectRepository(Role)
@@ -65,16 +66,12 @@ export class TasksService implements OnApplicationBootstrap {
     try {
       this.logger.log('Clearing users without verification...');
 
-      const cutoffDate = new Date(Date.now() - this.getEmailExpiration);
+      const cutoffDate = new Date(Date.now() - this.emailExpiration);
       const result = await this.userRepository.delete({ createdAt: LessThan(cutoffDate), isVerified: false });
 
       this.logger.log(`Removed ${result.affected} users without verification`);
     } catch (error) {
       this.logger.error('Failed to clear users without verification', error instanceof Error ? error.stack : error);
     }
-  }
-
-  private get getEmailExpiration() {
-    return this.configService.getOrThrow<number>('main.emailVerificationExpiration');
   }
 }
